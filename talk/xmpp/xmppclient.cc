@@ -32,9 +32,11 @@
 #include "talk/base/scoped_ptr.h"
 #include "talk/base/stringutils.h"
 #include "talk/xmpp/constants.h"
+#include "talk/xmpp/saslanonmechanism.h"
 #include "talk/xmpp/saslplainmechanism.h"
 #include "talk/xmpp/prexmppauth.h"
 #include "talk/xmpp/plainsaslhandler.h"
+#include "talk/xmpp/anonsaslhandler.h"
 
 namespace buzz {
 
@@ -228,7 +230,11 @@ int XmppClient::ProcessStart() {
     d_->pass_.Clear(); // done with this;
     return STATE_PRE_XMPP_LOGIN;
   }
-  else {
+  else if (GetAuthMechanism() == buzz::AUTH_MECHANISM_ANON) {
+    d_->engine_->SetSaslHandler(new AnonSaslHandler());
+    d_->pass_.Clear(); // done with this;
+    return STATE_START_XMPP_LOGIN;
+  } else {
     d_->engine_->SetSaslHandler(new PlainSaslHandler(
               d_->engine_->GetUser(), d_->pass_, d_->allow_plain_));
     d_->pass_.Clear(); // done with this;
