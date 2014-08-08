@@ -132,11 +132,6 @@
           '<(DEPTH)/third_party/openssl/openssl.gyp:openssl',
         ],
       }, {
-        'defines': [
-          'SSL_USE_NSS',
-          'HAVE_NSS_SSL_H',
-          'SSL_USE_NSS_RNG',
-        ],
         'conditions': [
           ['os_posix == 1 and OS != "mac" and OS != "ios" and OS != "android"', {
             'dependencies': [

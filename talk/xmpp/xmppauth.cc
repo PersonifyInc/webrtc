@@ -31,6 +31,7 @@
 
 #include "talk/xmpp/constants.h"
 #include "talk/xmpp/saslcookiemechanism.h"
+#include "talk/xmpp/saslanonmechanism.h"
 #include "talk/xmpp/saslplainmechanism.h"
 
 XmppAuth::XmppAuth() : done_(false) {
@@ -84,6 +85,11 @@ std::string XmppAuth::ChooseBestSaslMechanism(
     return buzz::AUTH_MECHANISM_PLAIN;
   }
 
+  // ... or anon authentication
+  if (contains(mechanisms, buzz::AUTH_MECHANISM_ANON)) {
+      return buzz::AUTH_MECHANISM_ANON;
+  }
+
   // No good mechanism found
   return "";
 }
@@ -99,6 +105,8 @@ buzz::SaslMechanism* XmppAuth::CreateSaslMechanism(
   //   return new buzz::SaslCookieMechanism(mechanism, jid.Str(), sid_);
   } else if (mechanism == buzz::AUTH_MECHANISM_PLAIN) {
     return new buzz::SaslPlainMechanism(jid_, passwd_);
+  } else if (mechanism == buzz::AUTH_MECHANISM_ANON) {
+    return new buzz::SaslAnonMechanism();
   } else {
     return NULL;
   }
