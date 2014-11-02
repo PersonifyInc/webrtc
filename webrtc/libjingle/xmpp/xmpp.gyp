@@ -27,6 +27,7 @@
         '<(DEPTH)/third_party/expat/expat.gyp:expat',
       ],
       'sources': [
+        'anonsaslhandler.h',
         'asyncsocket.h',
         'chatroommodule.h',
         'chatroommoduleimpl.cc',
@@ -74,6 +75,7 @@
         'rostermodule.h',
         'rostermoduleimpl.cc',
         'rostermoduleimpl.h',
+        'saslanonmechanism.h',
         'saslcookiemechanism.h',
         'saslhandler.h',
         'saslmechanism.cc',

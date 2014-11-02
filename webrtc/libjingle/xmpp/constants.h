@@ -540,7 +540,7 @@ extern const StaticQName QN_GOOGLE_MUC_RECORDING;
 extern const StaticQName QN_GOOGLE_MUC_MEDIA_BLOCK;
 extern const StaticQName QN_STATE_ATTR;
 
-
+extern const char AUTH_MECHANISM_ANON[];
 extern const char AUTH_MECHANISM_GOOGLE_COOKIE[];
 extern const char AUTH_MECHANISM_GOOGLE_TOKEN[];
 extern const char AUTH_MECHANISM_OAUTH2[];

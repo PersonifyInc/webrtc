@@ -12,8 +12,10 @@
 
 #include "webrtc/libjingle/xmpp/constants.h"
 #include "webrtc/libjingle/xmpp/plainsaslhandler.h"
+#include "webrtc/libjingle/xmpp/anonsaslhandler.h"
 #include "webrtc/libjingle/xmpp/prexmppauth.h"
 #include "webrtc/libjingle/xmpp/saslplainmechanism.h"
+#include "webrtc/libjingle/xmpp/saslanonmechanism.h"
 #include "webrtc/base/logging.h"
 #include "webrtc/base/scoped_ptr.h"
 #include "webrtc/base/sigslot.h"
@@ -211,6 +213,11 @@ int XmppClient::ProcessStart() {
         d_->auth_mechanism_, d_->auth_token_);
     d_->pass_.Clear(); // done with this;
     return STATE_PRE_XMPP_LOGIN;
+  }
+  else if (GetAuthMechanism() == buzz::AUTH_MECHANISM_ANON) {
+    d_->engine_->SetSaslHandler(new AnonSaslHandler());
+    d_->pass_.Clear(); // done with this;
+    return STATE_START_XMPP_LOGIN;
   }
   else {
     d_->engine_->SetSaslHandler(new PlainSaslHandler(
