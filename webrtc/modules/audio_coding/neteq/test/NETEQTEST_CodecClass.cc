@@ -578,7 +578,7 @@ int decoder_GSMFR::loadToNetEQ(NETEQTEST_NetEQClass & neteq)
 #endif
 
 #if (defined(CODEC_SPEEX_8) || defined (CODEC_SPEEX_16))
-#include "SpeexInterface.h"
+#include "speex_interface.h"
 decoder_SPEEX::decoder_SPEEX(uint8_t pt, uint16_t fs)
 :
 NETEQTEST_Decoder(fs == 8000 ? kDecoderSPEEX_8 : kDecoderSPEEX_16, 
@@ -587,13 +587,13 @@ NETEQTEST_Decoder(fs == 8000 ? kDecoderSPEEX_8 : kDecoderSPEEX_16,
     if (fs != 8000 && fs != 16000)
         throw std::exception("Wrong sample rate for SPEEX");
 
-    if (WebRtcSpeex_CreateDec((SPEEX_decinst_t **) &_decoder, fs, 1))
+    if (WebRtcSpeex_CreateDec((SPEEX_decinst_t_ **) &_decoder, fs, 1))
         exit(EXIT_FAILURE);
 }
 
 decoder_SPEEX::~decoder_SPEEX()
 {
-    WebRtcSpeex_FreeDec((SPEEX_decinst_t *) _decoder);
+    WebRtcSpeex_FreeDec((SPEEX_decinst_t_ *) _decoder);
 }
 
 int decoder_SPEEX::loadToNetEQ(NETEQTEST_NetEQClass & neteq)

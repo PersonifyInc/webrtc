@@ -36,6 +36,9 @@
 #ifdef WEBRTC_CODEC_PCM16
 #include "webrtc/modules/audio_coding/codecs/pcm16b/include/pcm16b.h"
 #endif
+#ifdef WEBRTC_CODEC_SPEEX
+#include "webrtc/modules/audio_coding/codecs/speex/include/speex_interface.h"
+#endif
 
 namespace webrtc {
 
@@ -467,6 +470,34 @@ int AudioDecoderOpus::PacketDuration(const uint8_t* encoded,
   return WebRtcOpus_DurationEst(static_cast<OpusDecInst*>(state_),
                                 encoded, static_cast<int>(encoded_len));
 }
+#endif
+
+// Opus
+#ifdef WEBRTC_CODEC_SPEEX
+AudioDecoderSpeex::AudioDecoderSpeex(enum NetEqDecoder type)
+    : AudioDecoder(type)
+{
+  WebRtcSpeex_CreateDec(reinterpret_cast<SPEEX_decinst_t_**>(&state_),16000,1);
+}
+
+AudioDecoderSpeex::~AudioDecoderSpeex() {
+  WebRtcSpeex_FreeDec(reinterpret_cast<SPEEX_decinst_t_*>(state_));
+}
+
+int AudioDecoderSpeex::Decode(const uint8_t* encoded, size_t encoded_len,
+                             int16_t* decoded, SpeechType* speech_type) {
+  int16_t temp_type = 1;  // Default is speech.
+  int16_t ret = WebRtcSpeex_Decode(reinterpret_cast<SPEEX_decinst_t_*>(state_), const_cast<int16_t*>(reinterpret_cast<const int16_t*>(encoded)),
+                                   static_cast<int16_t>(encoded_len), decoded,
+                                     &temp_type);
+  *speech_type = ConvertSpeechType(temp_type);
+  return ret;
+}
+
+int AudioDecoderSpeex::Init() {
+  return WebRtcSpeex_DecoderInit(reinterpret_cast<SPEEX_decinst_t_*>(state_));
+}
+
 #endif
 
 AudioDecoderCng::AudioDecoderCng(enum NetEqDecoder type)

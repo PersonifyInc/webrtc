@@ -82,6 +82,10 @@ bool AudioDecoder::CodecSupported(NetEqDecoder codec_type) {
     case kDecoderOpus:
     case kDecoderOpus_2ch:
 #endif
+#ifdef WEBRTC_CODEC_SPEEX
+    case kDecoderSPEEX_8:
+    case kDecoderSPEEX_16:
+#endif
     case kDecoderRED:
     case kDecoderAVT:
     case kDecoderCNGnb:
@@ -155,6 +159,12 @@ int AudioDecoder::CodecSampleRateHz(NetEqDecoder codec_type) {
       return 32000;
     }
 #endif
+#ifdef WEBRTC_CODEC_SPEEX
+    case kDecoderSPEEX_8:
+        return 8000;
+    case kDecoderSPEEX_16:
+        return 16000;
+#endif
     case kDecoderCNGswb48kHz: {
       // TODO(tlegrand): Remove limitation once ACM has full 48 kHz support.
       return 32000;
@@ -223,6 +233,11 @@ AudioDecoder* AudioDecoder::CreateAudioDecoder(NetEqDecoder codec_type) {
     case kDecoderOpus:
     case kDecoderOpus_2ch:
       return new AudioDecoderOpus(codec_type);
+#endif
+#ifdef WEBRTC_CODEC_SPEEX
+    case kDecoderSPEEX_8:
+    case kDecoderSPEEX_16:
+        return new AudioDecoderSpeex(codec_type);
 #endif
     case kDecoderCNGnb:
     case kDecoderCNGwb:

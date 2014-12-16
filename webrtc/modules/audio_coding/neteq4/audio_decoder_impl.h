@@ -244,6 +244,20 @@ class AudioDecoderOpus : public AudioDecoder {
 };
 #endif
 
+#ifdef WEBRTC_CODEC_SPEEX
+class AudioDecoderSpeex : public AudioDecoder {
+ public:
+  explicit AudioDecoderSpeex(enum NetEqDecoder type);
+  virtual ~AudioDecoderSpeex();
+  virtual int Decode(const uint8_t* encoded, size_t encoded_len,
+                     int16_t* decoded, SpeechType* speech_type);
+  virtual int Init();
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(AudioDecoderSpeex);
+};
+#endif
+
 // AudioDecoderCng is a special type of AudioDecoder. It inherits from
 // AudioDecoder just to fit in the DecoderDatabase. None of the class methods
 // should be used, except constructor, destructor, and accessors.

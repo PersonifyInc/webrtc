@@ -727,7 +727,7 @@ ACMGenericCodec* ACMCodecDB::CreateCodecInstance(const CodecInst& codec_inst) {
   } else if (!STR_CASE_CMP(codec_inst.plname, "speex")) {
 #ifdef WEBRTC_CODEC_SPEEX
     int codec_id;
-    switch (codec_inst->plfreq) {
+    switch (codec_inst.plfreq) {
       case 8000: {
         codec_id = kSPEEX8;
         break;

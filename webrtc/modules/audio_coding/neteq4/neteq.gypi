@@ -16,6 +16,7 @@
       'iSAC',
       'iSACFix',
       'CNG',
+      'SPEEX',
       '<(webrtc_root)/common_audio/common_audio.gyp:common_audio',
       '<(webrtc_root)/system_wrappers/source/system_wrappers.gyp:system_wrappers',
     ],
@@ -23,7 +24,7 @@
     'conditions': [
       ['include_opus==1', {
         'neteq_dependencies': ['webrtc_opus',],
-        'neteq_defines': ['WEBRTC_CODEC_OPUS',],
+        'neteq_defines': ['WEBRTC_CODEC_OPUS'],
       }],
     ],
   },
@@ -128,6 +129,7 @@
             '<(DEPTH)/testing/gtest.gyp:gtest',
             '<(webrtc_root)/common_audio/common_audio.gyp:common_audio',
             '<(webrtc_root)/test/test.gyp:test_support_main',
+            'SPEEX',
           ],
           'defines': [
             'AUDIO_DECODER_UNITTEST',
@@ -136,6 +138,7 @@
             'WEBRTC_CODEC_ISACFX',
             'WEBRTC_CODEC_ISAC',
             'WEBRTC_CODEC_PCM16',
+            'WEBRTC_CODEC_SPEEX',
             '<@(neteq_defines)',
           ],
           'sources': [
