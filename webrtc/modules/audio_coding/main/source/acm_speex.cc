@@ -20,7 +20,7 @@
 #ifdef WEBRTC_CODEC_SPEEX
 // NOTE! Speex is not included in the open-source package. Modify this file or
 // your codec API to match the function calls and names of used Speex API file.
-#include "speex_interface.h"
+#include "webrtc/modules/audio_coding/codecs/speex/include/speex_interface.h"
 #endif
 
 namespace webrtc {
@@ -266,7 +266,7 @@ int16_t ACMSPEEX::InternalInitEncoder(
     return -1;
   }
 
-  int16_t status = SetBitRateSafe((codec_params->codecInstant).rate);
+  int16_t status = SetBitRateSafe((codec_params->codec_inst).rate);
   status +=
       (WebRtcSpeex_EncoderInit(encoder_inst_ptr_, vbr_enabled_, compl_mode_,
                                ((codec_params->enable_dtx) ? 1 : 0)) < 0) ?
@@ -377,7 +377,7 @@ int16_t ACMSPEEX::SetBitRateSafe(const int32_t rate) {
     return 0;
   } else if (rate > 2000) {
     encoding_rate_ = rate;
-    encoder_params_.codecInstant.rate = rate;
+    encoder_params_.codec_inst.rate = rate;
   } else {
     WEBRTC_TRACE(webrtc::kTraceError, webrtc::kTraceAudioCoding, unique_id_,
                  "Unsupported encoding rate for Speex");

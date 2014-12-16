@@ -18,6 +18,7 @@
       'defines': [
         'NETEQ_VOICEENGINE_CODECS', # TODO: Should create a Chrome define which
         'SCRATCH',                  # specifies a subset of codecs to support.
+        'CODEC_SPEEX_16',
       ],
       'include_dirs': [
         'interface',
@@ -128,6 +129,7 @@
             'iLBC',
             'iSAC',
             'CNG',
+            'SPEEX',
           ],
           'defines': [
             # TODO: Make codec selection conditional on definitions in target NetEq
@@ -145,6 +147,7 @@
             'CODEC_CNGCODEC32',
             'CODEC_ATEVENT_DECODE',
             'CODEC_RED',
+            'CODEC_SPEEX_16',
           ],
           'include_dirs': [
             '.',
@@ -189,6 +192,7 @@
             'iLBC',
             'iSAC',
             'CNG',
+            'SPEEX',
             '<(DEPTH)/testing/gtest.gyp:gtest',
           ],
           'direct_dependent_settings': {
@@ -213,6 +217,7 @@
             'CODEC_CNGCODEC32',
             'CODEC_ATEVENT_DECODE',
             'CODEC_RED',
+            'CODEC_SPEEX_16',
           ],
           'include_dirs': [
             'interface',
