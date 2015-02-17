@@ -57,7 +57,7 @@ class ACMSPEEX : public ACMGenericCodec {
   bool vbr_enabled_;
   int32_t encoding_rate_;
   int16_t sampling_frequency_;
-  uint16_t samples_in_20ms_audio_;
+  int16_t samples_in_20ms_audio_;
 };
 
 }  // namespace acm2

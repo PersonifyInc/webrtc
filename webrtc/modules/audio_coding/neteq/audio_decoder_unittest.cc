@@ -27,6 +27,7 @@
 #include "webrtc/modules/audio_coding/codecs/isac/main/interface/isac.h"
 #include "webrtc/modules/audio_coding/codecs/opus/interface/opus_interface.h"
 #include "webrtc/modules/audio_coding/codecs/pcm16b/include/pcm16b.h"
+#include "webrtc/modules/audio_coding/codecs/speex/include/speex_interface.h"
 #include "webrtc/system_wrappers/interface/data_log.h"
 #include "webrtc/test/testsupport/fileutils.h"
 
@@ -669,6 +670,61 @@ class AudioDecoderOpusStereoTest : public AudioDecoderOpusTest {
   }
 };
 
+#ifdef WEBRTC_CODEC_SPEEX
+class AudioDecoderSpeexTest : public AudioDecoderTest {
+ protected:
+  static const int kEncodingRateBitsPerSecond = 22000;
+  AudioDecoderSpeexTest() : AudioDecoderTest(), encoder_(NULL) {
+    frame_size_ = 320;
+    channels_ = 1;
+    data_length_ = 10 * frame_size_;
+    decoder_ = AudioDecoder::CreateAudioDecoder(kDecoderSPEEX_16);
+    assert(decoder_);
+    WebRtcSpeex_CreateEnc(&encoder_, 16000);
+  }
+
+  ~AudioDecoderSpeexTest() {
+    WebRtcSpeex_FreeEnc(encoder_);
+  }
+
+  virtual void InitEncoder() {
+    assert(encoder_);
+    ASSERT_EQ(0, WebRtcSpeex_EncoderInit(encoder_, 0, 0, 10));
+  }
+
+  virtual int EncodeFrame(const int16_t* input, size_t input_len_samples,
+                          uint8_t* output) {
+    assert(encoder_);
+    // Downsample from 32 to 16 kHz.
+    Resampler rs;
+    rs.Reset(32000, 16000, kResamplerSynchronous);
+    const int max_resamp_len_samples = static_cast<int>(input_len_samples) / 2;
+    int16_t* resamp_input = new int16_t[max_resamp_len_samples];
+    int resamp_len_samples;
+    EXPECT_EQ(0, rs.Push(input, static_cast<int>(input_len_samples),
+                         resamp_input, max_resamp_len_samples,
+                         resamp_len_samples));
+    EXPECT_EQ(max_resamp_len_samples, resamp_len_samples);
+    int16_t status = -1;
+    status = WebRtcSpeex_Encode(encoder_, const_cast<int16_t*>(resamp_input), kEncodingRateBitsPerSecond);
+
+    EXPECT_GT(status, 0);
+
+    // This frame is detected as inactive. We need send whatever
+    // encoded so far.
+    int enc_len_bytes = WebRtcSpeex_GetBitstream(
+            encoder_, reinterpret_cast<int16_t*>(output));
+
+    EXPECT_GT(enc_len_bytes, 0);
+    delete [] resamp_input;
+    return enc_len_bytes;
+  }
+
+  SPEEX_encinst_t_* encoder_;
+};
+
+#endif // WEBRTC_CODEC_SPEEX
+
 TEST_F(AudioDecoderPcmUTest, EncodeDecode) {
   int tolerance = 251;
   double mse = 1734.0;
@@ -831,6 +887,19 @@ TEST_F(AudioDecoderCeltStereoTest, EncodeDecode) {
 }
 #endif
 
+#ifdef WEBRTC_CODEC_SPEEX
+
+TEST_F(AudioDecoderSpeexTest, EncodeDecode) {
+  int tolerance = 20000;
+  double mse = 3.46e6;
+  int delay = 22;  // Delay from input to output.
+  EXPECT_TRUE(AudioDecoder::CodecSupported(kDecoderSPEEX_16));
+  EncodeDecodeTest(0, tolerance, mse, delay);
+  ReInitTest();
+}
+
+#endif
+
 TEST(AudioDecoder, CodecSampleRateHz) {
   EXPECT_EQ(8000, AudioDecoder::CodecSampleRateHz(kDecoderPCMu));
   EXPECT_EQ(8000, AudioDecoder::CodecSampleRateHz(kDecoderPCMa));
@@ -867,6 +936,13 @@ TEST(AudioDecoder, CodecSampleRateHz) {
 #else
   EXPECT_EQ(-1, AudioDecoder::CodecSampleRateHz(kDecoderCELT_32));
   EXPECT_EQ(-1, AudioDecoder::CodecSampleRateHz(kDecoderCELT_32_2ch));
+#endif
+#ifdef WEBRTC_CODEC_SPEEX
+  EXPECT_EQ(8000, AudioDecoder::CodecSampleRateHz(kDecoderSPEEX_8));
+  EXPECT_EQ(16000, AudioDecoder::CodecSampleRateHz(kDecoderSPEEX_16));
+#else
+  EXPECT_EQ(-1, AudioDecoder::CodecSampleRateHz(kDecoderSPEEX_8));
+  EXPECT_EQ(-1, AudioDecoder::CodecSampleRateHz(kDecoderSPEEX_16));
 #endif
 }
 
@@ -905,6 +981,13 @@ TEST(AudioDecoder, CodecSupported) {
 #else
   EXPECT_FALSE(AudioDecoder::CodecSupported(kDecoderCELT_32));
   EXPECT_FALSE(AudioDecoder::CodecSupported(kDecoderCELT_32_2ch));
+#endif
+#ifdef WEBRTC_CODEC_SPEEX
+  EXPECT_TRUE(AudioDecoder::CodecSupported(kDecoderSPEEX_8));
+  EXPECT_TRUE(AudioDecoder::CodecSupported(kDecoderSPEEX_16));
+#else
+  EXPECT_FALSE(AudioDecoder::CodecSupported(kDecoderSPEEX_8));
+  EXPECT_FALSE(AudioDecoder::CodecSupported(kDecoderSPEEX_16));
 #endif
 }
 

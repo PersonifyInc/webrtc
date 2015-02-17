@@ -49,6 +49,8 @@ enum NetEqDecoder {
   kDecoderOpus_2ch,
   kDecoderCELT_32,
   kDecoderCELT_32_2ch,
+  kDecoderSPEEX_8,
+  kDecoderSPEEX_16,
 };
 
 // This is the interface class for decoders in NetEQ. Each codec type will have

@@ -45,6 +45,8 @@
 #define WEBRTC_CODEC_RED
 #endif  // !WEBRTC_CHROMIUM_BUILD && !WEBRTC_MOZILLA_BUILD
 
+#define WEBRTC_CODEC_SPEEX
+
 // ----------------------------------------------------------------------------
 //  [Video] Codec settings
 // ----------------------------------------------------------------------------

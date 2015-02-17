@@ -12,6 +12,9 @@
     'include_tests%': 1,
     'webrtc_root_additional_dependencies': [
     ],
+    # these must be set in GYP_DEFINES
+    'speex_include': '',
+    'speex_lib': '',
   },
   'targets': [
     {

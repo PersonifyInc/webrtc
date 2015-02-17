@@ -16,8 +16,11 @@
       'iSAC',
       'iSACFix',
       'CNG',
+      'acmspeex',
     ],
-    'neteq_defines': [],
+    'neteq_defines': [
+      'CODEC_SPEEX_16'
+    ],
     'conditions': [
       ['include_opus==1', {
         'codecs': ['webrtc_opus',],
@@ -164,7 +167,6 @@
             }],
           ],
         }, # audio_decoder_unittests
-
         {
           'target_name': 'neteq_unittest_tools',
           'type': 'static_library',
