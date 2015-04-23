@@ -553,6 +553,8 @@
         'xmpp/xmpptask.h',
         'xmpp/xmppthread.cc',
         'xmpp/xmppthread.h',
+        'xmpp/contentwrapper.cc',
+        'xmpp/contentwrapper.h',
       ],
       'conditions': [
         ['OS=="android"', {

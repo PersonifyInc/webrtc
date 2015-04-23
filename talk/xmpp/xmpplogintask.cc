@@ -65,6 +65,7 @@ XmppLoginTask::XmppLoginTask(XmppEngineImpl * pctx) :
   state_(LOGINSTATE_INIT),
   pelStanza_(NULL),
   isStart_(false),
+  isRestart_(false),
   iqId_(STR_EMPTY),
   pelFeatures_(),
   fullJid_(STR_EMPTY),
@@ -117,7 +118,13 @@ XmppLoginTask::Advance() {
         // also allows matching against a proxy domain instead, if it is told
         // to do so - see the implementation of XmppEngineImpl::StartTls and
         // XmppEngine::SetTlsServerDomain to see how you can use that feature
-        pctx_->InternalSendStart(pctx_->user_jid_.domain());
+        if (!isRestart_)
+          pctx_->InternalSendStart();
+        else
+        {
+          pctx_->InternalSendRestart();
+          isRestart_ = false;
+        }
         state_ = LOGINSTATE_STREAMSTART_SENT;
         break;
       }
@@ -186,6 +193,7 @@ XmppLoginTask::Advance() {
         pctx_->StartTls(pctx_->user_jid_.domain());
         pctx_->tls_option_ = buzz::TLS_ENABLED;
         state_ = LOGINSTATE_INIT;
+        isRestart_ = true;
         continue;
       }
 
@@ -261,6 +269,7 @@ XmppLoginTask::Advance() {
         // Authenticated!
         authNeeded_ = false;
         state_ = LOGINSTATE_INIT;
+        isRestart_ = true;
         continue;
       }
 
@@ -341,20 +350,29 @@ XmppLoginTask::Advance() {
 bool
 XmppLoginTask::HandleStartStream(const XmlElement *element) {
 
-  if (element->Name() != QN_STREAM_STREAM)
-    return false;
+  if (pctx_->connection_port_ == 80)
+  {
+    if (element->Name().LocalPart() != "body")
+      return false;
+    if (element->Attr(QN_XMLNS) != "http://jabber.org/protocol/httpbind")
+      return false;
+  }
+  else
+  {
+    if (element->Name() != QN_STREAM_STREAM)
+      return false;
 
-  if (element->Attr(QN_XMLNS) != "jabber:client")
-    return false;
+    if (element->Attr(QN_XMLNS) != "jabber:client")
+      return false;
 
-  if (element->Attr(QN_VERSION) != "1.0")
-    return false;
+    if (element->Attr(QN_VERSION) != "1.0")
+      return false;
 
-  if (!element->HasAttr(QN_ID))
-    return false;
+    if (!element->HasAttr(QN_ID))
+      return false;
 
-  streamId_ = element->Attr(QN_ID);
-
+    streamId_ = element->Attr(QN_ID);
+  }
   return true;
 }
 
