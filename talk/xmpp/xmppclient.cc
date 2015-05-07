@@ -154,8 +154,10 @@ XmppReturnStatus XmppClient::Connect(
 
   // Set language
   d_->engine_->SetLanguage(lang);
-
+  
   d_->engine_->SetUser(buzz::Jid(settings.user(), settings.host(), STR_EMPTY));
+  // Set connection socket server
+  d_->engine_->SetSocketServer(settings.server().hostname(), (int)settings.server().port());
 
   d_->pass_ = settings.pass();
   d_->auth_mechanism_ = settings.auth_mechanism();
@@ -165,7 +167,6 @@ XmppReturnStatus XmppClient::Connect(
   d_->proxy_port_ = settings.proxy_port();
   d_->allow_plain_ = settings.allow_plain();
   d_->pre_auth_.reset(pre_auth);
-
   return XMPP_RETURN_OK;
 }
 

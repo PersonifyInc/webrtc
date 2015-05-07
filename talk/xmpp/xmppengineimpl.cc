@@ -62,6 +62,7 @@ XmppEngineImpl::XmppEngineImpl()
       raised_reset_(false),
       output_handler_(NULL),
       session_handler_(NULL),
+      content_wrapper_(NULL),
       iq_entries_(new IqEntryVector()),
       sasl_handler_(),
       output_(new std::stringstream()) {
@@ -104,10 +105,12 @@ XmppReturnStatus XmppEngineImpl::HandleInput(
     return XMPP_RETURN_BADSTATE;
 
   EnterExit ee(this);
-
+  std::string str(bytes);
+  if(!content_wrapper_->HandleRecvData(str, len))
+    return XMPP_RETURN_UNEXPECTED;
   // TODO: The return value of the xml parser is not checked.
-  stanza_parser_.Parse(bytes, len, false);
-
+  stanza_parser_.Parse(str.c_str(), str.length(), false);
+  
   return XMPP_RETURN_OK;
 }
 
@@ -271,7 +274,7 @@ XmppReturnStatus XmppEngineImpl::Disconnect() {
   if (state_ != STATE_CLOSED) {
     EnterExit ee(this);
     if (state_ == STATE_OPEN)
-      *output_ << "</stream:stream>";
+      *output_ << content_wrapper_->GenerateLogout();
     state_ = STATE_CLOSED;
   }
 
@@ -340,24 +343,13 @@ void XmppEngineImpl::IncomingEnd(bool isError) {
   SignalError(isError ? ERROR_XML : ERROR_DOCUMENT_CLOSED, 0);
 }
 
-void XmppEngineImpl::InternalSendStart(const std::string& to) {
-  std::string hostname = tls_server_hostname_;
-  if (hostname.empty())
-    hostname = to;
+void XmppEngineImpl::InternalSendStart() {
+  *output_ << content_wrapper_->GenerateLoginStart();
+}
 
-  // If not language is specified, the spec says use *
-  std::string lang = lang_;
-  if (lang.length() == 0)
-    lang = "*";
-
-  // send stream-beginning
-  // note, we put a \r\n at tne end fo the first line to cause non-XMPP
-  // line-oriented servers (e.g., Apache) to reveal themselves more quickly.
-  *output_ << "<stream:stream to=\"" << hostname << "\" "
-           << "xml:lang=\"" << lang << "\" "
-           << "version=\"1.0\" "
-           << "xmlns:stream=\"http://etherx.jabber.org/streams\" "
-           << "xmlns=\"jabber:client\">\r\n";
+void XmppEngineImpl::InternalSendRestart()
+{
+  *output_ << content_wrapper_->GenerateLoginRestart();
 }
 
 void XmppEngineImpl::InternalSendStanza(const XmlElement* element) {
@@ -365,8 +357,10 @@ void XmppEngineImpl::InternalSendStanza(const XmlElement* element) {
   // It is implied by the bind on the stream and if you get it wrong
   // (by flipping from/to on a message?) the server will close the stream.
   ASSERT(!element->HasAttr(QN_FROM));
-
-  XmlPrinter::PrintXml(output_.get(), element, &xmlns_stack_);
+  
+  std::stringstream xml;
+  XmlPrinter::PrintXml(&xml, element, &xmlns_stack_);
+  *output_ << content_wrapper_->GenerateRequest(xml.str());
 }
 
 std::string XmppEngineImpl::ChooseBestSaslMechanism(

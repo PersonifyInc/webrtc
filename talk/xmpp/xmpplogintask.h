@@ -86,6 +86,7 @@ private:
   LoginTaskState state_;
   const XmlElement * pelStanza_;
   bool isStart_;
+  bool isRestart_;
   std::string iqId_;
   talk_base::scoped_ptr<XmlElement> pelFeatures_;
   Jid fullJid_;

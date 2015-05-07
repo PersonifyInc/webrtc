@@ -228,6 +228,10 @@ public:
   //! Sets language
   virtual void SetLanguage(const std::string & lang) = 0;
 
+  //! Sets connection port
+  virtual void SetSocketServer(const std::string& server,
+                               int port) = 0;
+
   // SESSION MANAGEMENT ---------------------------------------------------
 
   //! Set callback for state changes.
