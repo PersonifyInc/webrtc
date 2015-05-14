@@ -17,6 +17,10 @@
 
 namespace buzz {
 
+extern const int XMPP_PORT;
+extern const int HTTP_PORT;
+extern const int HTTPS_PORT;
+
 extern const char NS_CLIENT[];
 extern const char NS_SERVER[];
 extern const char NS_STREAM[];

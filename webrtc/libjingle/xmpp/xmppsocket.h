@@ -43,6 +43,7 @@ public:
   virtual bool Write(const char * data, size_t len);
   virtual bool Close();
   virtual bool StartTls(const std::string & domainname);
+  virtual void SetProxy(const std::string & host, int port) { };
 
   sigslot::signal1<int> SignalCloseEvent;
 
