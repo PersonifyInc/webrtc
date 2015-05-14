@@ -20,6 +20,9 @@
 
 namespace buzz {
 
+const int XMPP_PORT = 5222;
+const int HTTP_PORT = 80;
+const int HTTPS_PORT = 443;
 // TODO: Remove static objects of complex types, particularly
 // Jid and QName.
 
