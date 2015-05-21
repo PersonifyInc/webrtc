@@ -102,6 +102,9 @@ class ACMCodecDB {
     , kSPEEX8
     , kSPEEX16
 #endif
+#ifdef WEBRTC_CODEC_AAC
+    , kAAC48
+#endif
     , kCNNB
     , kCNWB
     , kCNSWB
@@ -180,6 +183,9 @@ class ACMCodecDB {
 #ifndef WEBRTC_CODEC_SPEEX
   enum {kSPEEX8 = -1};
   enum {kSPEEX16 = -1};
+#endif
+#ifndef WEBRTC_CODEC_AAC
+  enum {kAAC48 = -1};
 #endif
 #ifndef WEBRTC_CODEC_OPUS
   // Mono and stereo
@@ -330,6 +336,7 @@ class ACMCodecDB {
   static bool IsAMRwbRateValid(int rate);
   static bool IsG7291RateValid(int rate);
   static bool IsSpeexRateValid(int rate);
+  static bool IsAacRateValid(int rate);
   static bool IsOpusRateValid(int rate);
   static bool IsCeltRateValid(int rate);
 
