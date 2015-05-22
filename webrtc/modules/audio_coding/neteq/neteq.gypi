@@ -22,6 +22,9 @@
       'CODEC_SPEEX_16'
     ],
     'conditions': [
+     ['OS=="win"', {
+        'codecs': ['webrtc_aac',],
+      }],
       ['include_opus==1', {
         'codecs': ['webrtc_opus',],
         'neteq_defines': ['WEBRTC_CODEC_OPUS',],
@@ -160,6 +163,9 @@
             'interface/audio_decoder.h',
           ],
           'conditions': [
+            ['OS=="win"', {
+              'defines': ['WEBRTC_CODEC_AAC',],
+            }],
             ['OS=="android"', {
               'dependencies': [
                 '<(DEPTH)/testing/android/native_test.gyp:native_test_native_code',
