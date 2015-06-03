@@ -93,6 +93,10 @@
 #include "webrtc/modules/audio_coding/codecs/speex/include/speex_interface.h"
 #include "webrtc/modules/audio_coding/main/acm2/acm_speex.h"
 #endif
+#ifdef WEBRTC_CODEC_AAC
+#include "webrtc/modules/audio_coding/codecs/aac/include/aac_interface.h"
+#include "webrtc/modules/audio_coding/main/acm2/acm_aac.h"
+#endif
 #ifdef WEBRTC_CODEC_AVT
 #include "webrtc/modules/audio_coding/main/acm2/acm_dtmf_playout.h"
 #endif
@@ -181,6 +185,9 @@ const CodecInst ACMCodecDB::database_[] = {
 #ifdef WEBRTC_CODEC_SPEEX
   {85, "speex", 8000, 160, 1, 11000},
   {84, "speex", 16000, 320, 1, 22000},
+#endif
+#ifdef WEBRTC_CODEC_AAC
+  {83, "aac", 48000, 1024, 1, 12000},
 #endif
   // Comfort noise for four different sampling frequencies.
   {13, "CN", 8000, 240, 1, 0},
@@ -278,6 +285,9 @@ const ACMCodecDB::CodecSettings ACMCodecDB::codec_settings_[] = {
     {3, {160, 320, 480}, 0, 1, false},
     {3, {320, 640, 960}, 0, 1, false},
 #endif
+#ifdef WEBRTC_CODEC_AAC
+    {1, {1024}, 0, 1, false},
+#endif
     // Comfort noise for three different sampling frequencies.
     {1, {240}, 240, 1, false},
     {1, {480}, 480, 1, false},
@@ -368,6 +378,9 @@ const NetEqDecoder ACMCodecDB::neteq_decoders_[] = {
 #ifdef WEBRTC_CODEC_SPEEX
     kDecoderSPEEX_8,
     kDecoderSPEEX_16,
+#endif
+#ifdef WEBRTC_CODEC_AAC
+    kDecoderAAC_48,
 #endif
     // Comfort noise for three different sampling frequencies.
     kDecoderCNGnb,
@@ -487,6 +500,9 @@ int ACMCodecDB::CodecNumber(const CodecInst& codec_inst, int* mirror_id) {
         ? codec_id : kInvalidRate;
   } else if (STR_CASE_CMP("speex", codec_inst.plname) == 0) {
     return IsSpeexRateValid(codec_inst.rate)
+        ? codec_id : kInvalidRate;
+  } else if (STR_CASE_CMP("aac", codec_inst.plname) == 0) {
+    return IsAacRateValid(codec_inst.rate)
         ? codec_id : kInvalidRate;
   } else if (STR_CASE_CMP("celt", codec_inst.plname) == 0) {
     return IsCeltRateValid(codec_inst.rate)
@@ -742,6 +758,20 @@ ACMGenericCodec* ACMCodecDB::CreateCodecInstance(const CodecInst& codec_inst) {
     }
     return new ACMSPEEX(codec_id);
 #endif
+  } else if (!STR_CASE_CMP(codec_inst.plname, "aac")) {
+#ifdef WEBRTC_CODEC_AAC
+    int codec_id;
+    switch (codec_inst.plfreq) {
+      case 48000: {
+        codec_id = kAAC48;
+        break;
+      }
+      default: {
+        return NULL;
+      }
+    }
+    return new ACMAAC(codec_id);
+#endif
   } else if (!STR_CASE_CMP(codec_inst.plname, "CN")) {
     // For CN we need to check sampling frequency to know what codec to create.
     int codec_id;
@@ -924,6 +954,18 @@ bool ACMCodecDB::IsSpeexRateValid(int rate) {
   } else {
     return false;
   }
+}
+
+// Checks if the bitrate is valid for Aac
+bool ACMCodecDB::IsAacRateValid(int rate) {
+  if ((rate == 12000) ||
+      (rate == 16000) ||
+      (rate == 20000) ||
+      (rate == 24000))
+  {
+    return true;
+  }
+  return false;
 }
 
 // Checks if the bitrate is valid for Opus.
