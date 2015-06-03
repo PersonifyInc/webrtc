@@ -39,6 +39,9 @@
 #ifdef WEBRTC_CODEC_SPEEX
 #include "webrtc/modules/audio_coding/codecs/speex/include/speex_interface.h"
 #endif
+ #ifdef WEBRTC_CODEC_AAC
+ #include "webrtc/modules/audio_Coding/codecs/aac/include/aac_interface.h"
+ #endif
 
 namespace webrtc {
 
@@ -523,6 +526,34 @@ int AudioDecoderSpeex::Init() {
   return WebRtcSpeex_DecoderInit(reinterpret_cast<SPEEX_decinst_t_*>(state_));
 }
 
+#endif
+
+// AAC
+#ifdef WEBRTC_CODEC_AAC
+AudioDecoderAac::AudioDecoderAac(enum NetEqDecoder type)
+    : AudioDecoder(type)
+{
+  WebRtcAac_DecoderCreate(reinterpret_cast<AacDecInst**>(&state_));
+}
+
+AudioDecoderAac::~AudioDecoderAac()
+{
+  WebRtcAac_DecoderFree(reinterpret_cast<AacDecInst*>(state_));
+}
+
+int AudioDecoderAac::Decode(const uint8_t* encoded, size_t encoded_len,
+                            int16_t* decoded, SpeechType* speech_type)
+{
+  int16_t temp_type = 1;  // Default is speech.
+  int16_t ret = WebRtcAac_Decode(reinterpret_cast<AacDecInst*>(state_), encoded, encoded_len, decoded);
+  *speech_type = ConvertSpeechType(temp_type);
+  return ret;
+}
+
+int AudioDecoderAac::Init()
+{
+  return WebRtcAac_DecoderInit(reinterpret_cast<AacDecInst*>(state_));
+}
 #endif
 
 AudioDecoderCng::AudioDecoderCng(enum NetEqDecoder type)

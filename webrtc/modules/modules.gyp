@@ -39,6 +39,9 @@
     ['include_opus==1', {
       'includes': ['audio_coding/codecs/opus/opus.gypi',],
     }],
+    ['OS=="win"', {
+      'includes': ['audio_coding/codecs/aac/aac.gypi',],
+    }],
     ['include_tests==1', {
       'includes': [
         'audio_coding/codecs/isac/isac_test.gypi',
@@ -260,6 +263,9 @@
             'video_processing/main/test/unit_test/video_processing_unittest.h',
           ],
           'conditions': [
+            ['OS=="win"', {
+              'dependencies': ['webrtc_aac'],
+            }],
             ['enable_bwe_test_logging==1', {
               'defines': [ 'BWE_TEST_LOGGING_COMPILE_TIME_ENABLE=1' ],
             }, {

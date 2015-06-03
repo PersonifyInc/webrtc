@@ -26,6 +26,9 @@
         'audio_coding_dependencies': ['webrtc_opus',],
         'audio_coding_defines': ['WEBRTC_CODEC_OPUS',],
       }],
+      ['OS=="win"', {
+        'audio_coding_dependencies': ['webrtc_aac',],
+      }],
     ],
   },
   'targets': [
@@ -54,6 +57,8 @@
       'sources': [
         '../interface/audio_coding_module.h',
         '../interface/audio_coding_module_typedefs.h',
+        'acm_aac.cc',
+        'acm_aac.h',
         'acm_amr.cc',
         'acm_amr.h',
         'acm_amrwb.cc',
