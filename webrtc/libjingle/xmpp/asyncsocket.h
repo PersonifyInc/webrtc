@@ -58,6 +58,9 @@ public:
   // handling the valuable certificates for logins into proxies.  If
   // both names are passed as empty, we do not require a match.
   virtual bool StartTls(const std::string & domainname) = 0;
+  virtual void SetProxy(const std::string & host, int port) = 0;
+  virtual void SetInfo(const std::string & domainname, 
+                        const std::string & lang) = 0;
 #endif
 
   sigslot::signal0<> SignalConnected;

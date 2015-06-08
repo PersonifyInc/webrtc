@@ -203,6 +203,10 @@ XmppReturnStatus XmppEngineImpl::Connect() {
   if (state_ != STATE_START)
     return XMPP_RETURN_BADSTATE;
 
+  if (connection_port_ == HTTPS_PORT && !encrypted_) {
+    StartTls(user_jid_.domain());
+  }
+
   EnterExit ee(this);
 
   // get the login task started
@@ -253,8 +257,10 @@ std::string XmppEngineImpl::NextId() {
 XmppReturnStatus XmppEngineImpl::Disconnect() {
   if (state_ != STATE_CLOSED) {
     EnterExit ee(this);
-    if (state_ == STATE_OPEN)
-      *output_ << "</stream:stream>";
+    if (state_ == STATE_OPEN) {
+      // Send command string to socket, socket will generate appropriate message
+      *output_ << "end";
+    }
     state_ = STATE_CLOSED;
   }
 
@@ -323,24 +329,14 @@ void XmppEngineImpl::IncomingEnd(bool isError) {
   SignalError(isError ? ERROR_XML : ERROR_DOCUMENT_CLOSED, 0);
 }
 
-void XmppEngineImpl::InternalSendStart(const std::string& to) {
-  std::string hostname = tls_server_hostname_;
-  if (hostname.empty())
-    hostname = to;
+void XmppEngineImpl::InternalSendStart() {
+  // Send command string to socket, socket will generate appropriate message
+  *output_ << "start";
+}
 
-  // If not language is specified, the spec says use *
-  std::string lang = lang_;
-  if (lang.length() == 0)
-    lang = "*";
-
-  // send stream-beginning
-  // note, we put a \r\n at tne end fo the first line to cause non-XMPP
-  // line-oriented servers (e.g., Apache) to reveal themselves more quickly.
-  *output_ << "<stream:stream to=\"" << hostname << "\" "
-           << "xml:lang=\"" << lang << "\" "
-           << "version=\"1.0\" "
-           << "xmlns:stream=\"http://etherx.jabber.org/streams\" "
-           << "xmlns=\"jabber:client\">\r\n";
+void XmppEngineImpl::InternalSendRestart() {
+  // Send command string to socket, socket will generate appropriate message
+  *output_ << "restart";
 }
 
 void XmppEngineImpl::InternalSendStanza(const XmlElement* element) {
