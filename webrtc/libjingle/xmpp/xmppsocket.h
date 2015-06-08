@@ -13,6 +13,7 @@
 
 #include "webrtc/libjingle/xmpp/asyncsocket.h"
 #include "webrtc/libjingle/xmpp/xmppengine.h"
+#include "webrtc/libjingle/xmpp/xmppstanzagenerator.h"
 #include "webrtc/base/asyncsocket.h"
 #include "webrtc/base/bytebuffer.h"
 #include "webrtc/base/sigslot.h"
@@ -43,6 +44,9 @@ public:
   virtual bool Write(const char * data, size_t len);
   virtual bool Close();
   virtual bool StartTls(const std::string & domainname);
+  virtual void SetProxy(const std::string & host, int port) { };
+  virtual void SetInfo(const std::string & domainname, 
+                        const::std::string & lang);
 
   sigslot::signal1<int> SignalCloseEvent;
 
@@ -64,6 +68,9 @@ private:
   buzz::AsyncSocket::State state_;
   rtc::ByteBuffer buffer_;
   buzz::TlsOptions tls_;
+  std::string domain_;
+  std::string lang_;
+  buzz::XmppStanzaGenerator* generator_;
 };
 
 }  // namespace buzz
