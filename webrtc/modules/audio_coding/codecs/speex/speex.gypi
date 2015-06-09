@@ -33,7 +33,7 @@
                   '<(speex_lib)/libspeex.lib'
                 ],
             }],
-            ['OS=="mac"', {
+            ['OS=="mac" or OS=="linux"', {
               'libraries':[
                   '<(speex_lib)/libspeex.a'
                 ],
