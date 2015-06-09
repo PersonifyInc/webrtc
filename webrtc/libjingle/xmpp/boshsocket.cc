@@ -43,8 +43,10 @@ namespace buzz {
 #ifndef USE_SSLSTREAM
 #ifdef FEATURE_ENABLE_SSL
     if (tls_ != buzz::TLS_DISABLED) {
-      first_socket = rtc::SSLAdapter::Create(first_socket);
-      second_socket = rtc::SSLAdapter::Create(second_socket);
+        first_socket = rtc::SSLAdapter::Create(first_socket);
+        first_socket->set_ignore_bad_cert(true);
+        second_socket = rtc::SSLAdapter::Create(second_socket);
+        second_socket->set_ignore_bad_cert(true);
     }
 #endif  // FEATURE_ENABLE_SSL
     primary_socket_->socket_ = first_socket;
