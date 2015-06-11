@@ -148,7 +148,7 @@ void XmppSocket::OnEvent(rtc::StreamInterface* stream,
         return;
       ASSERT(result == rtc::SR_SUCCESS);
       ASSERT(written > 0);
-      buffer_.Shift(written);
+      buffer_.Consume(written);
     }
   }
   if ((events & rtc::SE_CLOSE))

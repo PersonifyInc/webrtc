@@ -165,19 +165,24 @@ time_t current_, last_send_, last_receive_;
   {
     //******************Implement Close
     Close();
-    delete primary_socket_->socket_;
-    delete secondary_socket_->socket_;
     delete generator_;
 #ifdef USE_SSLSTREAM
     delete primary_socket_->stream_;
     delete secondary_socket_->stream_;
-#endif  // USE_SSLSTREAM
+#else  // USE_SSLSTREAM
+    delete primary_socket_->socket_;
+    delete secondary_socket_->socket_;
+#endif
     delete primary_socket_;
     delete secondary_socket_;
   }
 
 #ifndef USE_SSLSTREAM
   void BoshSocket::OnReadEvent(rtc::AsyncSocket *socket) {
+    auto temp_socket = primary_socket_;
+    if (temp_socket->socket_ != socket) {
+      temp_socket = secondary_socket_;
+    }
     last_receive_ = time(NULL);
     buzz::InputMsg input_msg;
     char bytes[4096];
@@ -200,32 +205,29 @@ time_t current_, last_send_, last_receive_;
         std::memcpy(input_msg.data_, str.c_str(), str.length());
         input_msg.recv_result_ = true;
       }
-    }
-    auto temp_socket = primary_socket_;
-    if (temp_socket->socket_ != socket) {
-      temp_socket = secondary_socket_;
-    }
-    // After receiving the return of CONNECT, start tls
-    // sendconnect always eq true in case of ssl and proxy
-    if (temp_socket->connect_sent_) {
-      temp_socket->connect_sent_ = false;
-      temp_socket->connected_ = true;
-      temp_socket->pending_ = false;
-      if (BothConnected()) {
-        SignalConnected();
-      }
-    }
-    else {
-      temp_socket->pending_ = false;
-      if (input_msg.len_ != 0) {
-        input_queue_.push(input_msg);
-        SignalRead();
-      }
 
-      // If current socket receive empty response, continue sending empty request
-      else if (temp_socket->socket_ == last_socket_->socket_) {
-        std::string temp = "empty";
-        Write(temp.c_str(), temp.length());
+      // After receiving the return of CONNECT, start tls
+      // sendconnect always eq true in case of ssl and proxy
+      if (temp_socket->connect_sent_) {
+        temp_socket->connect_sent_ = false;
+        temp_socket->connected_ = true;
+        temp_socket->pending_ = false;
+        if (BothConnected()) {
+          SignalConnected();
+        }
+      }
+      else {
+        temp_socket->pending_ = false;
+        if (input_msg.len_ != 0) {
+          input_queue_.push(input_msg);
+          SignalRead();
+        }
+
+        // If current socket receive empty response, continue sending empty request
+        else if (temp_socket->socket_ == last_socket_->socket_) {
+          std::string temp = "empty";
+          Write(temp.c_str(), temp.length());
+        }
       }
     }
   }
@@ -269,9 +271,6 @@ time_t current_, last_send_, last_receive_;
       temp_socket->connected_ = true;
       temp_socket->pending_ = false;
       SignalSSLConnected();
-      if (BothConnected()) {
-        OnWriteEvent(GetSocket()->socket_);
-      }
       return;
     }
 #endif  // !defined(FEATURE_ENABLE_SSL)
@@ -307,9 +306,7 @@ time_t current_, last_send_, last_receive_;
         temp_socket->connected_ = true;
         temp_socket->pending_ = false;
         SignalSSLConnected();
-        if(BothConnected()) {
-          OnEvent(GetSocket()->stream_, rtc::SE_WRITE, 0);
-        }
+        return;
       }
 #endif
       temp_socket->state_ = buzz::AsyncSocket::STATE_OPEN;
@@ -322,6 +319,7 @@ time_t current_, last_send_, last_receive_;
         if (BothConnected()) {
           SignalConnected();
         }
+        return;
       }
     }
     if ((events & rtc::SE_READ)) {
@@ -330,44 +328,44 @@ time_t current_, last_send_, last_receive_;
       char bytes[4096];
       size_t read;
       rtc::StreamResult result = stream->Read(bytes, sizeof(bytes), &read, NULL);
-      if (result == rtc::SR_SUCCESS) {
-          std::string str(bytes);
-          bool isEmptyResponse = false;
-          generator_->HandleRecvData(str, read, isEmptyResponse);
-          if (start_sent_)
-          {
-            inactivity_ = generator_->GetInactivity();
-            start_sent_ = false;
-          }
-          if (isEmptyResponse) {
-            input_msg.len_ = 0;
-          }
-          else {
-            input_msg.len_ = str.length();
-            input_msg.data_ = new char[str.length()];
-            std::memcpy(input_msg.data_, str.c_str(), str.length());
-            input_msg.recv_result_ = true;
-          }
-      }
-      if (temp_socket->connect_sent_) {
-        temp_socket->connect_sent_ = false;
-        temp_socket->connected_ = true;
-        temp_socket->pending_ = false;
-        if (BothConnected()) {
-          SignalConnected();
-        }
-      }
-      else {
-        temp_socket->pending_ = false;
-        if (input_msg.len_ != 0)
+      if (result == rtc::SR_SUCCESS) 
+      {
+        std::string str(bytes);
+        bool isEmptyResponse = false;
+        generator_->HandleRecvData(str, read, isEmptyResponse);
+        if (start_sent_)
         {
-          input_queue_.push(input_msg);
-          SignalRead();
+          inactivity_ = generator_->GetInactivity();
+          start_sent_ = false;
         }
-        //If the socket is the current socket
-        if (temp_socket->stream_ == last_socket_->stream_) {
-          std::string temp = "empty";
-          Write(temp.c_str(), temp.length());
+        if (isEmptyResponse) {
+          input_msg.len_ = 0;
+        }
+        else {
+          input_msg.len_ = str.length();
+          input_msg.data_ = new char[str.length()];
+          std::memcpy(input_msg.data_, str.c_str(), str.length());
+          input_msg.recv_result_ = true;
+        }
+        if (temp_socket->connect_sent_) {
+          temp_socket->connect_sent_ = false;
+          temp_socket->connected_ = true;
+          temp_socket->pending_ = false;
+          if (BothConnected()) {
+            SignalConnected();
+          }
+        }
+        else {
+          temp_socket->pending_ = false;
+          if (input_msg.len_ != 0) {
+            input_queue_.push(input_msg);
+            SignalRead();
+          }
+          //If the socket is the current socket
+          else if (temp_socket->stream_ == last_socket_->stream_) {
+            std::string temp = "empty";
+            Write(temp.c_str(), temp.length());
+          }
         }
       }
     }
@@ -394,13 +392,13 @@ time_t current_, last_send_, last_receive_;
             return;
           ASSERT(result == rtc::SR_SUCCESS);
           ASSERT(written > 0);
-          buffer_.Shift(written);
+          buffer_.Consume(written);
         }
         temp_socket->pending_ = true;
       }
       last_send_ = time(NULL);
     }
-    if ((events & rtc::SE_CLOSE))
+    else if ((events & rtc::SE_CLOSE))
       SignalCloseEvent(err);
   }
 #endif
