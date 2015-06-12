@@ -214,48 +214,67 @@ namespace buzz{
   bool BoshXmppStanzaGenerator::HandleRecvData(std::string& str, std::size_t len, bool& is_empty_response)
   {
     std::string content = str.substr(0, len);
-    // Find the position of <body...
+    std::size_t header_length = content.find("\r\n\r\n");
     std::size_t start_body = content.find_first_of("<");
-    if (start_body == std::string::npos)
+    if (header_length != std::string::npos)
+    {
+      // Collect the HTTP header and the status code return.
+      std::string header = content.substr(0, header_length + 2);
+      std::string status_code = header.substr(9, 3);
+      if (status_code != "200")
+      {
+        return false;
+      }
+    }
+    if (start_body != std::string::npos)
+    {
+      content = content.substr(start_body, len - start_body);
+
+      // Collect the sid of message
+      if (sid_ == "")
+      {
+        if (!CollectData(content))
+        {
+          return false;
+        }
+      }
+
+      // Check whether the message is empty response.
+      // The content looks like <body .../>
+      if (content.find_first_of("<") == content.find_last_of("<")) {
+        is_empty_response = true;
+        return true;
+      }
+      else {
+        // Process the return string of start/restart messages
+        if (start_sent_) {
+          // Find the position of </body>
+          std::size_t end_body = content.find_last_of("<");
+          if (end_body == std::string::npos) {
+            return false;
+          }
+          content = content.substr(0, end_body);
+          start_sent_ = false;
+        }
+        // Process the return string of other messages
+        else {
+          std::size_t start = content.find_first_of(">");
+          std::size_t stop = content.find_last_of("<");
+          //Remove the <body...> and </body> tags
+          if (start == std::string::npos || stop == std::string::npos) {
+            return false;
+          }
+          else {
+            content = content.substr(start + 1, stop - start - 1);
+          }
+        }
+        str = content;
+      }
+      return true;
+    }
+    else
     {
       return false;
     }
-    content = content.substr(start_body, len - start_body);
-
-    // Collect the sid of message
-    if (sid_ == "")
-    {
-      if (!CollectData(content))
-      {
-        return false;
-      }
-    }
-
-    // Process the return string of start/restart messages
-    if (start_sent_)
-    {
-      // Find the position of </body>
-      std::size_t end_body = content.find_last_of("<");
-      if (end_body == std::string::npos)
-      {
-        return false;
-      }
-      content = content.substr(0, end_body);
-      start_sent_ = false;
-    }
-    // Process the return string of other messages
-    else
-    {
-      //Remove the <body...> and </body> tags
-      std::size_t start = content.find_first_of(">");
-      std::size_t stop = content.find_last_of("<");
-      if (start == std::string::npos || stop == std::string::npos)
-      {
-        return false;
-      }
-      content = content.substr(start + 1, stop - start - 1);
-    }
-    str = content;
-    return true;
   }
 }

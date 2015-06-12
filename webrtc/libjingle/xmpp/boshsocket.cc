@@ -189,23 +189,26 @@ time_t current_, last_send_, last_receive_;
     int len = socket->Recv(bytes, sizeof(bytes));
     if (len > 0) {
       std::string str(bytes);
-      bool isEmptyResponse = false;
-      generator_->HandleRecvData(str, len, isEmptyResponse);
-      if (start_sent_)
-      {
-        inactivity_ = generator_->GetInactivity();
-        start_sent_ = false;
-      }
-      if (isEmptyResponse) {
-        input_msg.len_ = 0;
+      bool is_empty_response = false;
+      bool result = generator_->HandleRecvData(str, len, is_empty_response);
+      if (result) {
+        if (start_sent_) {
+          inactivity_ = generator_->GetInactivity();
+          start_sent_ = false;
+        }
+        if (is_empty_response) {
+          input_msg.len_ = 0;
+        }
+        else {
+          input_msg.len_ = str.length();
+          input_msg.data_ = new char[str.length()];
+          std::memcpy(input_msg.data_, str.c_str(), str.length());
+          input_msg.recv_result_ = true;
+        }
       }
       else {
-        input_msg.len_ = str.length();
-        input_msg.data_ = new char[str.length()];
-        std::memcpy(input_msg.data_, str.c_str(), str.length());
-        input_msg.recv_result_ = true;
+        input_msg.len_ = 0;
       }
-
       // After receiving the return of CONNECT, start tls
       // sendconnect always eq true in case of ssl and proxy
       if (temp_socket->connect_sent_) {
@@ -224,7 +227,7 @@ time_t current_, last_send_, last_receive_;
         }
 
         // If current socket receive empty response, continue sending empty request
-        else if (temp_socket->socket_ == last_socket_->socket_) {
+        else if (is_empty_response && temp_socket->socket_ == last_socket_->socket_) {
           std::string temp = "empty";
           Write(temp.c_str(), temp.length());
         }
