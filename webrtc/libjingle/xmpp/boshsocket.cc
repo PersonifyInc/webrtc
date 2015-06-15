@@ -5,7 +5,6 @@
 #endif
 
 #include <errno.h>
-#include <time.h>
 #include "webrtc/base/basicdefs.h"
 #include "webrtc/base/logging.h"
 #include "webrtc/base/thread.h"
@@ -25,17 +24,16 @@
 #endif  // FEATURE_ENABLE_SSL
 #endif  // USE_SSLSTREAM
 
-
 namespace buzz {
 
-bool running_ = true;
-int inactivity_ = 0;
-time_t current_, last_send_, last_receive_;
+  const unsigned int kMilliToNano = 1000000;
+  bool running_ = true;
+  int inactivity_ = 0;
+  time_t current_;
 
 #if defined (WEBRTC_WIN)
   DWORD WINAPI DoTask(LPVOID param) {
-    BoshSocket *socket;
-    socket = (BoshSocket*)param;
+    BoshSocket *socket = (BoshSocket *)param;
     while (running_) {
       if (!socket->OutputEmpty())
       {
@@ -44,26 +42,48 @@ time_t current_, last_send_, last_receive_;
       else {
         time(&current_);
         // If there was things is sent before, and we have had inactivity time.
-        if (last_send_ != 0 && inactivity_ != 0)
+        if (inactivity_ != 0)
         {
-          if (difftime(current_, last_receive_) >= inactivity_ - 1)
+          auto primary_socket = socket->GetPrimarySocket();
+          auto secondary_socket = socket->GetSecondarySocket();
+          if (primary_socket != NULL)
           {
-            if (difftime(last_receive_, last_send_) >= 0)
+            if (difftime(current_, primary_socket->last_receive_) >= inactivity_ / 2)
             {
-              // Send empty request
-              std::string temp = "empty";
-              socket->Write(temp.c_str(), temp.length());
+              if (difftime(primary_socket->last_receive_, primary_socket->last_send_) >= 0)
+              {
+                // Send empty request
+                std::string temp = "empty";
+                socket->Write(temp.c_str(), temp.length());
+                socket->TrySending(primary_socket);
+              }
+            }
+          }
+          if (secondary_socket != NULL) 
+          {
+            if (difftime(current_, secondary_socket->last_receive_) >= inactivity_ / 2) 
+            {
+              if (difftime(secondary_socket->last_receive_, secondary_socket->last_send_) >= 0) 
+              {
+                // Send empty request
+                std::string temp = "empty";
+                socket->Write(temp.c_str(), temp.length());
+                socket->TrySending(secondary_socket);
+              }
             }
           }
         }
-        Sleep(1000);
+        Sleep(50);
       }
     }
     return 0;
   }
 #elif defined (WEBRTC_POSIX)
   void* DoTask(void* param) {
-    BoshSocket* socket = (BoshSocket*)param;
+    BoshSocket *socket = (BoshSocket *)param;
+    struct timespec ts;
+    ts.tv_sec = 0;
+    ts.tv_nsec = 50 * kMilliToNano;
     while (running_) {
       if (!socket->OutputEmpty())
       {
@@ -72,19 +92,34 @@ time_t current_, last_send_, last_receive_;
       else {
         time(&current_);
         // If there was nothing is sent before, then do nothing
-        if (last_send_ != 0 && inactivity_)
-        {
-          if (difftime(current_, last_receive_) >= inactivity_ - 1)
+        if (inactivity_ != 0) {
+          auto primary_socket = socket->GetPrimarySocket();
+          auto secondary_socket = socket->GetSecondarySocket();
+          if (primary_socket != NULL)
           {
-            if (difftime(last_receive_, last_send_) >= 0)
+            if (difftime(current_, primary_socket->last_receive_) >= inactivity_ / 2)
             {
-              // Send empty request
-              std::string temp = "empty";
-              socket->Write(temp.c_str(), temp.length());
+              if (difftime(primary_socket->last_receive_, primary_socket->last_send_) >= 0)
+              {
+                // Send empty request
+                std::string temp = "empty";
+                socket->Write(temp.c_str(), temp.length());
+                socket->TrySending(primary_socket);
+              }
+            }
+          }
+          if (secondary_socket != NULL) {
+            if (difftime(current_, secondary_socket->last_receive_) >= inactivity_ / 2) {
+              if (difftime(secondary_socket->last_receive_, secondary_socket->last_send_) >= 0) {
+                // Send empty request
+                std::string temp = "empty";
+                socket->Write(temp.c_str(), temp.length());
+                socket->TrySending(secondary_socket);
+              }
             }
           }
         }
-        sleep(1);
+        nanosleep(&ts, NULL);
       }
     }
     pthread_exit(NULL);
@@ -100,6 +135,7 @@ time_t current_, last_send_, last_receive_;
                                                  use_proxy_(false),
                                                  start_sent_(false)
   {
+    running_ = true;
 #if defined WEBRTC_WIN
     DWORD thread_id;
     HANDLE thread = CreateThread(0, 0, DoTask, this, 0, &thread_id);
@@ -183,12 +219,12 @@ time_t current_, last_send_, last_receive_;
     if (temp_socket->socket_ != socket) {
       temp_socket = secondary_socket_;
     }
-    last_receive_ = time(NULL);
+    temp_socket->last_receive_ = time(NULL);
     buzz::InputMsg input_msg;
     char bytes[4096];
     int len = socket->Recv(bytes, sizeof(bytes));
     if (len > 0) {
-      std::string str(bytes);
+      std::string str(bytes, len);
       bool is_empty_response = false;
       bool result = generator_->HandleRecvData(str, len, is_empty_response);
       if (result) {
@@ -226,8 +262,8 @@ time_t current_, last_send_, last_receive_;
           SignalRead();
         }
 
-        // If current socket receive empty response, continue sending empty request
-        else if (is_empty_response && temp_socket->socket_ == last_socket_->socket_) {
+        // Send request right after receiving response
+        if (temp_socket->socket_ == last_socket_->socket_) {
           std::string temp = "empty";
           Write(temp.c_str(), temp.length());
         }
@@ -260,7 +296,7 @@ time_t current_, last_send_, last_receive_;
       }
       temp_socket->pending_ = true;
     }
-    last_send_ = time(NULL);
+    temp_socket->last_send_ = time(NULL);
   }
 
   void BoshSocket::OnConnectEvent(rtc::AsyncSocket * socket) {
@@ -326,14 +362,14 @@ time_t current_, last_send_, last_receive_;
       }
     }
     if ((events & rtc::SE_READ)) {
-      last_receive_ = time(NULL);
+      temp_socket->last_receive_ = time(NULL);
       buzz::InputMsg input_msg;
       char bytes[4096];
       size_t read;
       rtc::StreamResult result = stream->Read(bytes, sizeof(bytes), &read, NULL);
       if (result == rtc::SR_SUCCESS) 
       {
-        std::string str(bytes);
+        std::string str(bytes, read);
         bool isEmptyResponse = false;
         generator_->HandleRecvData(str, read, isEmptyResponse);
         if (start_sent_)
@@ -365,7 +401,7 @@ time_t current_, last_send_, last_receive_;
             SignalRead();
           }
           //If the socket is the current socket
-          else if (temp_socket->stream_ == last_socket_->stream_) {
+          if (temp_socket->stream_ == last_socket_->stream_) {
             std::string temp = "empty";
             Write(temp.c_str(), temp.length());
           }
@@ -399,7 +435,7 @@ time_t current_, last_send_, last_receive_;
         }
         temp_socket->pending_ = true;
       }
-      last_send_ = time(NULL);
+      temp_socket->last_send_ = time(NULL);
     }
     else if ((events & rtc::SE_CLOSE))
       SignalCloseEvent(err);
@@ -510,6 +546,15 @@ time_t current_, last_send_, last_receive_;
         // TODO Should sleep some seconds here in case both sockets are pending?
       }
     }
+  }
+
+  void BoshSocket::TrySending(ManagedSocket* socket)
+  {
+#ifndef USE_SSLSTREAM
+    OnWriteEvent(socket->socket_);
+#else // USE_SSLSTREAM
+    OnEvent(socket->stream_, rtc::SE_WRITE, 0);
+#endif // USE_SSLSTREAM
   }
 
   bool BoshSocket::Close() {

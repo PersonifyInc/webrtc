@@ -9,6 +9,7 @@
 #include "webrtc/base/sigslot.h"
 #include <queue>
 #include <string>
+#include <time.h>
 
 namespace rtc {
   class StreamInterface;
@@ -25,15 +26,19 @@ namespace buzz {
     bool connected_;
     bool connect_sent_;  // CONNECT sent, required when use ssl under proxy server.
     buzz::AsyncSocket::State state_;
+    time_t last_send_, last_receive_;
+    
 
     ManagedSocket() {
-      socket_ = NULL;
+      socket_ = nullptr;
 #ifdef USE_SSLSTREAM
       stream_ = NULL;
 #endif // USE_SSLSTREAM
       pending_ = true;
       connected_ = false;
       connect_sent_ = false;
+      last_send_ = time(NULL);
+      last_receive_ = time(NULL);
       state_ = buzz::AsyncSocket::State::STATE_CLOSED;
     }
   };
@@ -42,7 +47,7 @@ namespace buzz {
     char *data_;
     size_t len_;
     bool recv_result_;
-    InputMsg() : data_(NULL), len_(0), recv_result_(false) {
+    InputMsg() : data_(nullptr), len_(0), recv_result_(false) {
     }
 
     InputMsg(const InputMsg& msg) {
@@ -95,6 +100,9 @@ namespace buzz {
                          const std::string & lang);
     bool OutputEmpty() { return output_queue_.empty();}
     void TrySending();
+    void TrySending(ManagedSocket* socket);
+    buzz::ManagedSocket* GetPrimarySocket() { return primary_socket_; }
+    buzz::ManagedSocket* GetSecondarySocket() { return secondary_socket_; }
     sigslot::signal1<int> SignalCloseEvent;
     buzz::BoshXmppStanzaGenerator* GetGenerator() { return generator_;}
 
