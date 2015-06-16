@@ -81,8 +81,13 @@ namespace buzz{
 
   std::string BoshXmppStanzaGenerator::GenerateEmptyRequest()
   {
-    std::string empty_request = GetEmptyBody();
-    return WrapHtmlRequest(empty_request);
+      if (sid_ != "")
+      {
+          std::string empty_request = GetEmptyBody();
+          return WrapHtmlRequest(empty_request);
+      }
+
+      return std::string("");
   }
 
   std::string BoshXmppStanzaGenerator::GenerateRequest(const std::string& xml)

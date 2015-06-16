@@ -138,7 +138,7 @@ namespace buzz {
     int server_port_;
     std::string domain_;
     std::string lang_;
-    buzz::BoshXmppStanzaGenerator* generator_;
+    static buzz::BoshXmppStanzaGenerator* generator_;
   };
 } // namespace buzz
 

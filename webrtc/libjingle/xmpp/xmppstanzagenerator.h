@@ -30,6 +30,7 @@ namespace buzz{
     std::string GenerateLogout();
     std::string GenerateRequest(const std::string& str);
     int GetInactivity() {return inactivity_;}
+    int GetRid() { return rid_; }
     bool HandleRecvData(std::string& str, std::size_t len, bool& is_empty_response);
 
   private:

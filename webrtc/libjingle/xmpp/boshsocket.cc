@@ -24,7 +24,11 @@
 #endif  // FEATURE_ENABLE_SSL
 #endif  // USE_SSLSTREAM
 
+#include <iostream>
+
 namespace buzz {
+
+  BoshXmppStanzaGenerator* BoshSocket::generator_ = nullptr;
 
   const unsigned int kMilliToNano = 1000000;
   bool running_ = true;
@@ -129,7 +133,7 @@ namespace buzz {
   BoshSocket::BoshSocket(buzz::TlsOptions tls) : primary_socket_(NULL),
                                                  secondary_socket_(NULL),
                                                  last_socket_(NULL),
-                                                 generator_(NULL),
+                                                 //generator_(NULL),
                                                  tls_(tls),
                                                  ssl_(false),
                                                  use_proxy_(false),
@@ -201,7 +205,7 @@ namespace buzz {
   {
     //******************Implement Close
     Close();
-    delete generator_;
+    //delete generator_;
 #ifdef USE_SSLSTREAM
     delete primary_socket_->stream_;
     delete secondary_socket_->stream_;
@@ -482,7 +486,10 @@ namespace buzz {
     if (use_proxy_) {
       local_addr = rtc::SocketAddress(proxy_host_, proxy_port_);
     }
-    generator_ = new BoshXmppStanzaGenerator(domain_, lang_, addr.hostname(), addr.port());
+    if (!generator_)
+    {
+        generator_ = new BoshXmppStanzaGenerator(domain_, lang_, addr.hostname(), addr.port());
+    }
     if (primary_socket_ == NULL && secondary_socket_ == NULL) {
       CreateCricketSocket(local_addr.family());
     }
@@ -526,8 +533,14 @@ namespace buzz {
     else {
       generated_data = generator_->GenerateRequest(temp_data);
     }
-    buzz::OutputMsg msg(generated_data.c_str(), generated_data.length());
-    output_queue_.push(msg);
+
+    std::cout << "socket: " << std::hex << this << std::dec << " RID: " << generator_->GetRid() << " genlen: " << generated_data.length() << std::endl;
+    if (generated_data.length() > 0)
+    {
+        buzz::OutputMsg msg(generated_data.c_str(), generated_data.length());
+        output_queue_.push(msg);
+    }
+
     // In case one of the socket is not pending at the same time
     return true;
   }
