@@ -20,6 +20,7 @@
 #include "webrtc/base/scoped_ptr.h"
 #include "webrtc/base/sigslot.h"
 #include "webrtc/base/stringutils.h"
+#include "webrtc/base/proxydetect.h"
 #include "xmpptask.h"
 
 namespace buzz {
@@ -136,17 +137,30 @@ XmppReturnStatus XmppClient::Connect(
     }
   }
 
+  std::string user_agent = "default";
+  rtc::ProxyInfo proxyInfo;
+
+  rtc::GetProxySettingsForUrl(user_agent.c_str(), server_name.c_str(), &proxyInfo, true);
+
   // Set language
   d_->engine_->SetLanguage(lang);
 
   d_->engine_->SetUser(buzz::Jid(settings.user(), settings.host(), STR_EMPTY));
 
+  // Set connection socket server
+  d_->engine_->SetSocketServer(settings.server().hostname(), (int)settings.server().port());
+
   d_->pass_ = settings.pass();
   d_->auth_mechanism_ = settings.auth_mechanism();
   d_->auth_token_ = settings.auth_token();
   d_->server_ = settings.server();
-  d_->proxy_host_ = settings.proxy_host();
-  d_->proxy_port_ = settings.proxy_port();
+  d_->proxy_host_ = (!proxyInfo.address.hostname().empty()) ? proxyInfo.address.hostname() : settings.proxy_host();
+  d_->proxy_port_ = (proxyInfo.address.port()) ? proxyInfo.address.port() : settings.proxy_port();
+  d_->socket_->SetProxy(d_->proxy_host_, d_->proxy_port_);
+
+  // Set some information (use to send in XMPP/BOSH start message)
+  d_->socket_->SetInfo(settings.host(), lang);
+
   d_->allow_plain_ = settings.allow_plain();
   d_->pre_auth_.reset(pre_auth);
 

@@ -15,6 +15,7 @@
 #include <vector>
 #include "webrtc/libjingle/xmpp/xmppengine.h"
 #include "webrtc/libjingle/xmpp/xmppstanzaparser.h"
+#include "webrtc/libjingle/xmpp/xmppstanzagenerator.h"
 
 namespace buzz {
 
@@ -83,6 +84,11 @@ class XmppEngineImpl : public XmppEngine {
   //! Sets language
   virtual void SetLanguage(const std::string& lang) {
     lang_ = lang;
+  }
+
+  virtual void SetSocketServer(const std::string& server, int port) {
+    connection_server_ = server;
+    connection_port_ = port;
   }
 
   // SESSION MANAGEMENT ---------------------------------------------------
@@ -174,7 +180,8 @@ class XmppEngineImpl : public XmppEngine {
   void IncomingStart(const XmlElement *stanza);
   void IncomingEnd(bool isError);
 
-  void InternalSendStart(const std::string& domainName);
+  void InternalSendStart();
+  void InternalSendRestart();
   void InternalSendStanza(const XmlElement* stanza);
   std::string ChooseBestSaslMechanism(
       const std::vector<std::string>& mechanisms, bool encrypted);
@@ -235,6 +242,8 @@ class XmppEngineImpl : public XmppEngine {
   std::string tls_server_domain_;
   rtc::scoped_ptr<XmppLoginTask> login_task_;
   std::string lang_;
+  std::string connection_server_;
+  int connection_port_;
 
   int next_id_;
   Jid bound_jid_;

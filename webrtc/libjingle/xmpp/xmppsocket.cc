@@ -32,6 +32,7 @@
 namespace buzz {
 
 XmppSocket::XmppSocket(buzz::TlsOptions tls) : cricket_socket_(NULL),
+                                               generator_(NULL),
                                                tls_(tls) {
   state_ = buzz::AsyncSocket::STATE_CLOSED;
 }
@@ -68,6 +69,7 @@ void XmppSocket::CreateCricketSocket(int family) {
 
 XmppSocket::~XmppSocket() {
   Close();
+  delete generator_;
 #ifndef USE_SSLSTREAM
   delete cricket_socket_;
 #else  // USE_SSLSTREAM
@@ -146,7 +148,7 @@ void XmppSocket::OnEvent(rtc::StreamInterface* stream,
         return;
       ASSERT(result == rtc::SR_SUCCESS);
       ASSERT(written > 0);
-      buffer_.Shift(written);
+      buffer_.Consume(written);
     }
   }
   if ((events & rtc::SE_CLOSE))
@@ -173,6 +175,7 @@ bool XmppSocket::Connect(const rtc::SocketAddress& addr) {
   if (cricket_socket_->Connect(addr) < 0) {
     return cricket_socket_->IsBlocking();
   }
+  generator_ = new XmppStanzaGenerator(domain_, lang_);
   return true;
 }
 
@@ -192,7 +195,21 @@ bool XmppSocket::Read(char * data, size_t len, size_t* len_read) {
 }
 
 bool XmppSocket::Write(const char * data, size_t len) {
-  buffer_.WriteBytes(data, len);
+  std::string temp_data(data);
+  std::string generated_data;
+  if (temp_data == "end") {
+    generated_data = generator_->GenerateLogout();
+  }
+  else if (temp_data == "start") {
+    generated_data = generator_->GenerateLoginStart();
+  }
+  else if (temp_data == "restart") {
+    generated_data = generator_->GenerateLoginRestart();
+  }
+  else {
+    generated_data = generator_->GenerateRequest(temp_data);
+  }
+  buffer_.WriteBytes(generated_data.c_str(), generated_data.length());
 #ifndef USE_SSLSTREAM
   OnWriteEvent(cricket_socket_);
 #else  // USE_SSLSTREAM
@@ -239,6 +256,11 @@ bool XmppSocket::StartTls(const std::string & domainname) {
 #else  // !defined(FEATURE_ENABLE_SSL)
   return false;
 #endif  // !defined(FEATURE_ENABLE_SSL)
+}
+
+void XmppSocket::SetInfo(const std::string & domain, const std::string & lang) {
+  domain_ = domain;
+  lang_ = lang;
 }
 
 }  // namespace buzz
