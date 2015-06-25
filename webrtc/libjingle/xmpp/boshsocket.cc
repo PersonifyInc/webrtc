@@ -155,14 +155,14 @@ namespace buzz {
 #ifndef USE_SSLSTREAM
 #ifdef FEATURE_ENABLE_SSL
     if (tls_ != buzz::TLS_DISABLED) {
-      first_socket = rtc::SSLAdapter::Create(first_socket);
-      second_socket = rtc::SSLAdapter::Create(second_socket);
+      first_socket = rtc::SSLAdapter::CreateLogged(first_socket);
+      second_socket = rtc::SSLAdapter::CreateLogged(second_socket);
     }
 #endif  // FEATURE_ENABLE_SSL
 
     // DEBUG: wrap sockets with logging goodness
-    first_socket = new rtc::LoggingSocketAdapter(first_socket, rtc::LS_SENSITIVE, "first_bosh_socket", true);
-    second_socket = new rtc::LoggingSocketAdapter(second_socket, rtc::LS_SENSITIVE, "first_bosh_socket", true);
+    //first_socket = new rtc::LoggingSocketAdapter(first_socket, rtc::LS_SENSITIVE, "first_bosh_socket", true);
+    //second_socket = new rtc::LoggingSocketAdapter(second_socket, rtc::LS_SENSITIVE, "second_bosh_socket", true);
 
     primary_socket_->socket_ = first_socket;
     secondary_socket_->socket_ = second_socket;

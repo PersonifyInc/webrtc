@@ -12,6 +12,7 @@
 #define WEBRTC_BASE_SSLADAPTER_H_
 
 #include "webrtc/base/asyncsocket.h"
+#include "webrtc/base/socketadapters.h"
 
 namespace rtc {
 
@@ -34,6 +35,8 @@ class SSLAdapter : public AsyncSocketAdapter {
   // and deletes |socket|. Otherwise, the returned SSLAdapter takes ownership
   // of |socket|.
   static SSLAdapter* Create(AsyncSocket* socket);
+  
+  static SSLAdapter* CreateLogged(AsyncSocket* socket);
 
  private:
   // If true, the server certificate need not match the configured hostname.
