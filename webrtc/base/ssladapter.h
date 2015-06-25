@@ -36,7 +36,7 @@ class SSLAdapter : public AsyncSocketAdapter {
   // of |socket|.
   static SSLAdapter* Create(AsyncSocket* socket);
   
-  static SSLAdapter* CreateLogged(AsyncSocket* socket);
+  static AsyncSocket* CreateLogged(AsyncSocket* socket);
 
  private:
   // If true, the server certificate need not match the configured hostname.

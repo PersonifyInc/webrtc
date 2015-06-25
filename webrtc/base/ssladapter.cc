@@ -46,9 +46,9 @@ SSLAdapter::Create(AsyncSocket* socket) {
 #endif  // !SSL_USE_OPENSSL && !SSL_USE_SCHANNEL
 }
 
-SSLAdapter*
+AsyncSocket*
 SSLAdapter::CreateLogged(AsyncSocket* socket) {
-  return Create(new LoggingSocketAdapter(socket, LS_SENSITIVE, "ssl_socket", true));
+  return new LoggingSocketAdapter(Create(socket), LS_SENSITIVE, "ssl_socket", true);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
