@@ -25,6 +25,8 @@
 #endif  // FEATURE_ENABLE_SSL
 #endif  // USE_SSLSTREAM
 
+#include "webrtc/base/socketadapters.h"
+
 #include <iostream>
 
 namespace buzz {
@@ -157,6 +159,11 @@ namespace buzz {
       second_socket = rtc::SSLAdapter::Create(second_socket);
     }
 #endif  // FEATURE_ENABLE_SSL
+
+    // DEBUG: wrap sockets with logging goodness
+    first_socket = new rtc::LoggingSocketAdapter(first_socket, rtc::LS_SENSITIVE, "first_bosh_socket", true);
+    second_socket = new rtc::LoggingSocketAdapter(second_socket, rtc::LS_SENSITIVE, "first_bosh_socket", true);
+
     primary_socket_->socket_ = first_socket;
     secondary_socket_->socket_ = second_socket;
 
