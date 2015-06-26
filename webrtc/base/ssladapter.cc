@@ -46,9 +46,9 @@ SSLAdapter::Create(AsyncSocket* socket) {
 #endif  // !SSL_USE_OPENSSL && !SSL_USE_SCHANNEL
 }
 
-AsyncSocket*
+SSLAdapter*
 SSLAdapter::CreateLogged(AsyncSocket* socket) {
-  return new LoggingSocketAdapter(Create(socket), LS_SENSITIVE, "ssl_socket", true);
+  return new LoggingSSLSocketAdapter(Create(socket), LS_SENSITIVE, "ssl_socket", true);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -98,5 +98,68 @@ bool CleanupSSL() {
 #endif  // !SSL_USE_OPENSSL && !SSL_USE_NSS
 
 ///////////////////////////////////////////////////////////////////////////////
+
+
+LoggingSSLSocketAdapter::LoggingSSLSocketAdapter(SSLAdapter* socket,
+                                           LoggingSeverity level,
+                                           const char * label, bool hex_mode)
+    : SSLAdapter(socket), level_(level), hex_mode_(hex_mode) {
+  label_.append("[");
+  label_.append(label);
+  label_.append("]");
+}
+
+int LoggingSSLSocketAdapter::Send(const void *pv, size_t cb) {
+  int res = SSLAdapter::Send(pv, cb);
+  if (res > 0)
+    LogMultiline(level_, label_.c_str(), false, pv, res, hex_mode_, &lms_);
+  return res;
+}
+
+int LoggingSSLSocketAdapter::SendTo(const void *pv, size_t cb,
+                             const SocketAddress& addr) {
+  int res = SSLAdapter::SendTo(pv, cb, addr);
+  if (res > 0)
+    LogMultiline(level_, label_.c_str(), false, pv, res, hex_mode_, &lms_);
+  return res;
+}
+
+int LoggingSSLSocketAdapter::Recv(void *pv, size_t cb) {
+  int res = SSLAdapter::Recv(pv, cb);
+  if (res > 0)
+    LogMultiline(level_, label_.c_str(), true, pv, res, hex_mode_, &lms_);
+  return res;
+}
+
+int LoggingSSLSocketAdapter::RecvFrom(void *pv, size_t cb, SocketAddress *paddr) {
+  int res = SSLAdapter::RecvFrom(pv, cb, paddr);
+  if (res > 0)
+    LogMultiline(level_, label_.c_str(), true, pv, res, hex_mode_, &lms_);
+  return res;
+}
+
+int LoggingSSLSocketAdapter::Close() {
+  LogMultiline(level_, label_.c_str(), false, NULL, 0, hex_mode_, &lms_);
+  LogMultiline(level_, label_.c_str(), true, NULL, 0, hex_mode_, &lms_);
+  LOG_V(level_) << label_ << " Closed locally";
+  return socket_->Close();
+}
+
+void LoggingSSLSocketAdapter::OnConnectEvent(SSLAdapter * socket) {
+  LOG_V(level_) << label_ << " Connected";
+  SSLAdapter::OnConnectEvent(socket);
+}
+
+void LoggingSSLSocketAdapter::OnCloseEvent(SSLAdapter * socket, int err) {
+  LogMultiline(level_, label_.c_str(), false, NULL, 0, hex_mode_, &lms_);
+  LogMultiline(level_, label_.c_str(), true, NULL, 0, hex_mode_, &lms_);
+  LOG_V(level_) << label_ << " Closed with error: " << err;
+  SSLAdapter::OnCloseEvent(socket, err);
+}
+
+int LoggingSSLSocketAdapter::StartSSL(const char* hostname, bool restartable) {
+    return static_cast<SSLAdapter*>(socket_)->StartSSL(hostname, restartable);
+}
+
 
 }  // namespace rtc

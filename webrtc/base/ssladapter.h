@@ -13,6 +13,7 @@
 
 #include "webrtc/base/asyncsocket.h"
 #include "webrtc/base/socketadapters.h"
+#include "webrtc/base/logging.h"
 
 namespace rtc {
 
@@ -36,7 +37,7 @@ class SSLAdapter : public AsyncSocketAdapter {
   // of |socket|.
   static SSLAdapter* Create(AsyncSocket* socket);
   
-  static AsyncSocket* CreateLogged(AsyncSocket* socket);
+  static SSLAdapter* CreateLogged(AsyncSocket* socket);
 
  private:
   // If true, the server certificate need not match the configured hostname.
@@ -58,6 +59,34 @@ bool InitializeSSLThread();
 bool CleanupSSL();
 
 ///////////////////////////////////////////////////////////////////////////////
+
+// Implements a SSL socket adapter that logs everything it sends and receives (pre/post encryption/decryption)
+class LoggingSSLSocketAdapter : public SSLAdapter
+{
+ public:
+  LoggingSSLSocketAdapter(SSLAdapter* socket, LoggingSeverity level,
+                 const char * label, bool hex_mode = false);
+
+  virtual int Send(const void *pv, size_t cb);
+  virtual int SendTo(const void *pv, size_t cb, const SocketAddress& addr);
+  virtual int Recv(void *pv, size_t cb);
+  virtual int RecvFrom(void *pv, size_t cb, SocketAddress *paddr);
+  virtual int Close();
+  virtual int StartSSL(const char* hostname, bool restartable);
+  
+ protected:
+  virtual void OnConnectEvent(SSLAdapter * socket);
+  virtual void OnCloseEvent(SSLAdapter * socket, int err);
+
+ private:
+  LoggingSeverity level_;
+  std::string label_;
+  bool hex_mode_;
+  LogMultilineState lms_;
+  DISALLOW_EVIL_CONSTRUCTORS(LoggingSSLSocketAdapter);
+
+};    
+
 
 }  // namespace rtc
 

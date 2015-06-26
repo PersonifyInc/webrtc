@@ -213,6 +213,7 @@ class AsyncSocksProxyServerSocket : public AsyncProxyServerSocket {
 
 ///////////////////////////////////////////////////////////////////////////////
 
+
 // Implements a socket adapter that logs everything that it sends and receives.
 class LoggingSocketAdapter : public AsyncSocketAdapter {
  public:
