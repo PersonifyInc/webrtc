@@ -140,7 +140,30 @@ XmppReturnStatus XmppClient::Connect(
   std::string user_agent = "default";
   rtc::ProxyInfo proxyInfo;
 
-  rtc::GetProxySettingsForUrl(user_agent.c_str(), server_name.c_str(), &proxyInfo, true);
+  // Construct a full URL for the proxy lookup.
+  std::string server_url;
+  if (settings.server().port() == buzz::XMPP_PORT)
+  {
+      server_url = "xmpp://" + server_name + ":5222";
+  }
+  else if (settings.server().port() == buzz::HTTP_PORT)
+  {
+      server_url = "http://" + server_name;
+  }
+  else if (settings.server().port() == buzz::HTTPS_PORT)
+  { 
+      server_url = "https://" + server_name;
+  }
+
+  LOG(LS_INFO) << "Fetching proxy info for URL " << server_url.c_str();
+  rtc::GetProxySettingsForUrl(user_agent.c_str(), server_url.c_str(), &proxyInfo, true);
+  LOG(LS_INFO) << "ProxyInfo: " << std::endl
+      << "   type: " << rtc::ProxyToString(proxyInfo.type) << std::endl
+      << "   address: " << proxyInfo.address.ToString() << std::endl
+      << "   autoconf_url: " << proxyInfo.autoconfig_url << std::endl
+      << "   autodetect: " << proxyInfo.autodetect << std::endl
+      << "   bypass_list: " << proxyInfo.bypass_list << std::endl
+      << "   username: " << proxyInfo.username << std::endl;
 
   // Set language
   d_->engine_->SetLanguage(lang);
