@@ -1,6 +1,6 @@
 #ifndef WEBRTC_LIBJINGLE_XMPP_XMPPSTANZAGENERATOR_H_
 #define WEBRTC_LIBJINGLE_XMPP_XMPPSTANZAGENERATOR_H_
-#include "webrtc\libjingle\xmpp\constants.h"
+#include "webrtc/libjingle/xmpp/constants.h"
 #include <string>
 
 namespace buzz{

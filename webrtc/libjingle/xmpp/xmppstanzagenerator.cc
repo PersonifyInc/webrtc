@@ -1,4 +1,4 @@
-#include "webrtc\libjingle\xmpp\xmppstanzagenerator.h"
+#include "webrtc/libjingle/xmpp/xmppstanzagenerator.h"
 #include <stdlib.h>
 #include <time.h>
 #include <sstream>
