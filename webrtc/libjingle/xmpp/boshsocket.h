@@ -10,6 +10,7 @@
 #include <queue>
 #include <string>
 #include <time.h>
+#include <cstring>
 
 namespace rtc {
   class StreamInterface;

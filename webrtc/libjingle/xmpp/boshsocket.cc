@@ -26,6 +26,7 @@
 #endif  // USE_SSLSTREAM
 
 #include <iostream>
+#include <cstring>
 
 namespace buzz {
 
