@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <sstream>
 #include <vector>
+#include <cstring>
 
 #include "webrtc/libjingle/xmllite/xmlelement.h"
 #include "webrtc/libjingle/xmllite/xmlprinter.h"
