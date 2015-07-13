@@ -8,10 +8,9 @@
 
 {
   'variables': {
-    'libjingle_root%': '<(DEPTH)',
+    'include_examples%': 1,
     'include_tests%': 1,
-    'webrtc_root_additional_dependencies': [
-    ],
+    'webrtc_root_additional_dependencies': [],
     # these must be set in GYP_DEFINES
     'speex_include': '',
     'speex_lib': '',
@@ -22,19 +21,19 @@
       'type': 'none',
       'dependencies': [
         'webrtc/webrtc.gyp:*',
-        '<(libjingle_root)/talk/libjingle.gyp:*',
-        '<(libjingle_root)/talk/libjingle_examples.gyp:*',
+        'talk/libjingle.gyp:*',
         '<@(webrtc_root_additional_dependencies)',
       ],
       'conditions': [
-        ['OS=="android"', {
+        ['include_examples==1', {
           'dependencies': [
+            'talk/libjingle_examples.gyp:*',
             'webrtc/webrtc_examples.gyp:*',
           ],
         }],
         ['include_tests==1', {
           'dependencies': [
-            '<(libjingle_root)/talk/libjingle_tests.gyp:*',
+            'talk/libjingle_tests.gyp:*',
           ],
         }],
       ],

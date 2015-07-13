@@ -24,7 +24,6 @@
     },
     'documented_interfaces': {
       'filepath': 'webrtc/[^/]*\.h$|'\
-                  'webrtc/video_engine/include/.*|'\
                   'webrtc/voice_engine/include/.*',
     },
     'build_files': {
@@ -64,9 +63,6 @@
     'audio_processing': {
       'filepath': 'webrtc/modules/audio_processing/.*',
     },
-    'video_codecs': {
-      'filepath': 'webrtc/modules/video_coding/codecs/.*',
-    },
     'video_coding': {
       'filepath': 'webrtc/modules/video_coding/.*',
     },
@@ -92,8 +88,7 @@
 
   'WATCHLISTS': {
     'this_file': [''],
-    'all_webrtc': ['giles@mozilla.com',
-                   'tterriberry@mozilla.com'],
+    'all_webrtc': ['tterriberry@mozilla.com'],
     'root_files': ['andrew@webrtc.org',
                    'niklas.enbom@webrtc.org',
                    'yujie.mao@webrtc.org',
@@ -108,7 +103,8 @@
                      'perkj@webrtc.org',
                      'stefan@webrtc.org',
                      'yujie.mao@webrtc.org'],
-    'voice_engine': ['henrika@webrtc.org'],
+    'voice_engine': ['henrika@webrtc.org',
+                     'henrik.lundin@webrtc.org'],
     'video_capture': ['mflodman@webrtc.org',
                       'perkj@webrtc.org'],
     'video_render': ['mflodman@webrtc.org',
@@ -121,8 +117,8 @@
     'audio_processing': ['aluebs@webrtc.org',
                          'andrew@webrtc.org',
                          'bjornv@webrtc.org',
-                         'kwiberg@webrtc.org'],
-    'video_codecs': ['henrik.lundin@webrtc.org'],
+                         'kwiberg@webrtc.org',
+                         'henrik.lundin@webrtc.org'],
     'video_coding': ['stefan@webrtc.org',
                      'mflodman@webrtc.org'],
     'video_processing': ['stefan@webrtc.org'],

@@ -7,6 +7,7 @@
  *  in the file PATENTS.  All contributing project authors may
  *  be found in the AUTHORS file in the root of the source tree.
  */
+#include <algorithm>
 
 #include "webrtc/p2p/base/relayport.h"
 #include "webrtc/base/asyncpacketsocket.h"
@@ -158,13 +159,14 @@ class AllocateRequest : public StunRequest {
   AllocateRequest(RelayEntry* entry, RelayConnection* connection);
   virtual ~AllocateRequest() {}
 
-  virtual void Prepare(StunMessage* request);
+  void Prepare(StunMessage* request) override;
 
-  virtual int GetNextDelay();
+  void OnSent() override;
+  int resend_delay() override;
 
-  virtual void OnResponse(StunMessage* response);
-  virtual void OnErrorResponse(StunMessage* response);
-  virtual void OnTimeout();
+  void OnResponse(StunMessage* response) override;
+  void OnErrorResponse(StunMessage* response) override;
+  void OnTimeout() override;
 
  private:
   RelayEntry* entry_;
@@ -172,11 +174,14 @@ class AllocateRequest : public StunRequest {
   uint32 start_time_;
 };
 
-RelayPort::RelayPort(
-    rtc::Thread* thread, rtc::PacketSocketFactory* factory,
-    rtc::Network* network, const rtc::IPAddress& ip,
-    int min_port, int max_port, const std::string& username,
-    const std::string& password)
+RelayPort::RelayPort(rtc::Thread* thread,
+                     rtc::PacketSocketFactory* factory,
+                     rtc::Network* network,
+                     const rtc::IPAddress& ip,
+                     uint16 min_port,
+                     uint16 max_port,
+                     const std::string& username,
+                     const std::string& password)
     : Port(thread, RELAY_PORT_TYPE, factory, network, ip, min_port, max_port,
            username, password),
       ready_(false),
@@ -771,13 +776,19 @@ void AllocateRequest::Prepare(StunMessage* request) {
   VERIFY(request->AddAttribute(username_attr));
 }
 
-int AllocateRequest::GetNextDelay() {
-  int delay = 100 * rtc::_max(1 << count_, 2);
+void AllocateRequest::OnSent() {
   count_ += 1;
   if (count_ == 5)
     timeout_ = true;
-  return delay;
 }
+
+int AllocateRequest::resend_delay() {
+  if (count_ == 0) {
+    return 0;
+  }
+  return 100 * std::max(1 << (count_-1), 2);
+}
+
 
 void AllocateRequest::OnResponse(StunMessage* response) {
   const StunAddressAttribute* addr_attr =

@@ -10,6 +10,7 @@
 
 #include <string>
 
+#include "webrtc/base/logging.h"
 #include "webrtc/modules/interface/module_common_types.h"
 #include "webrtc/modules/rtp_rtcp/source/rtp_format_video_generic.h"
 
@@ -36,7 +37,7 @@ void RtpPacketizerGeneric::SetPayloadData(
   payload_size_ = payload_size;
 
   // Fragment packets more evenly by splitting the payload up evenly.
-  uint32_t num_packets =
+  size_t num_packets =
       (payload_size_ + max_payload_len_ - 1) / max_payload_len_;
   payload_length_ = (payload_size_ + num_packets - 1) / num_packets;
   assert(payload_length_ <= max_payload_len_);
@@ -90,17 +91,23 @@ bool RtpDepacketizerGeneric::Parse(ParsedPayload* parsed_payload,
                                    const uint8_t* payload_data,
                                    size_t payload_data_length) {
   assert(parsed_payload != NULL);
-  assert(parsed_payload->header != NULL);
+  if (payload_data_length == 0) {
+    LOG(LS_ERROR) << "Empty payload.";
+    return false;
+  }
 
   uint8_t generic_header = *payload_data++;
   --payload_data_length;
 
-  parsed_payload->header->frameType =
+  parsed_payload->frame_type =
       ((generic_header & RtpFormatVideoGeneric::kKeyFrameBit) != 0)
           ? kVideoFrameKey
           : kVideoFrameDelta;
-  parsed_payload->header->type.Video.isFirstPacket =
+  parsed_payload->type.Video.isFirstPacket =
       (generic_header & RtpFormatVideoGeneric::kFirstPacketBit) != 0;
+  parsed_payload->type.Video.codec = kRtpVideoGeneric;
+  parsed_payload->type.Video.width = 0;
+  parsed_payload->type.Video.height = 0;
 
   parsed_payload->payload = payload_data;
   parsed_payload->payload_length = payload_data_length;

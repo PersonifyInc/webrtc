@@ -9,16 +9,18 @@
 {
   'variables': {
     'audio_coding_dependencies': [
-      'CNG',
-      'G711',
-      'G722',
-      'iLBC',
-      'iSAC',
-      'iSACFix',
-      'PCM16B',
+      'cng',
+      'g711',
+      'g722',
+      'ilbc',
+      'isac',
+      'isac_fix',
+      'pcm16b',
+      'red',
       'acmspeex',
+      '<(webrtc_root)/common.gyp:webrtc_common',
       '<(webrtc_root)/common_audio/common_audio.gyp:common_audio',
-      '<(webrtc_root)/system_wrappers/source/system_wrappers.gyp:system_wrappers',
+      '<(webrtc_root)/system_wrappers/system_wrappers.gyp:system_wrappers',
     ],
     'audio_coding_defines': [],
     'conditions': [
@@ -40,6 +42,7 @@
       ],
       'dependencies': [
         '<@(audio_coding_dependencies)',
+        '<(webrtc_root)/common.gyp:webrtc_common',
         'neteq',
       ],
       'include_dirs': [
@@ -59,50 +62,9 @@
         '../interface/audio_coding_module_typedefs.h',
         'acm_aac.cc',
         'acm_aac.h',
-        'acm_amr.cc',
-        'acm_amr.h',
-        'acm_amrwb.cc',
-        'acm_amrwb.h',
-        'acm_celt.cc',
-        'acm_celt.h',
-        'acm_cng.cc',
-        'acm_cng.h',
         'acm_codec_database.cc',
         'acm_codec_database.h',
         'acm_common_defs.h',
-        'acm_dtmf_playout.cc',
-        'acm_dtmf_playout.h',
-        'acm_g722.cc',
-        'acm_g722.h',
-        'acm_g7221.cc',
-        'acm_g7221.h',
-        'acm_g7221c.cc',
-        'acm_g7221c.h',
-        'acm_g729.cc',
-        'acm_g729.h',
-        'acm_g7291.cc',
-        'acm_g7291.h',
-        'acm_generic_codec.cc',
-        'acm_generic_codec.h',
-        'acm_gsmfr.cc',
-        'acm_gsmfr.h',
-        'acm_ilbc.cc',
-        'acm_ilbc.h',
-        'acm_isac.cc',
-        'acm_isac.h',
-        'acm_isac_macros.h',
-        'acm_opus.cc',
-        'acm_opus.h',
-        'acm_speex.cc',
-        'acm_speex.h',
-        'acm_pcm16b.cc',
-        'acm_pcm16b.h',
-        'acm_pcma.cc',
-        'acm_pcma.h',
-        'acm_pcmu.cc',
-        'acm_pcmu.h',
-        'acm_red.cc',
-        'acm_red.h',
         'acm_receiver.cc',
         'acm_receiver.h',
         'acm_resampler.cc',
@@ -112,14 +74,50 @@
         'audio_coding_module_impl.h',
         'call_statistics.cc',
         'call_statistics.h',
+        'codec_manager.cc',
+        'codec_manager.h',
+        'codec_owner.cc',
+        'codec_owner.h',
         'initial_delay_manager.cc',
         'initial_delay_manager.h',
         'nack.cc',
         'nack.h',
       ],
     },
+    {
+      'target_name': 'acm_dump',
+      'type': 'static_library',
+      'conditions': [
+        ['enable_protobuf==1', {
+          'defines': ['RTC_AUDIOCODING_DEBUG_DUMP'],
+          'dependencies': ['acm_dump_proto'],
+          }
+        ],
+      ],
+      'sources': [
+        'acm_dump.h',
+        'acm_dump.cc'
+      ],
+    },
   ],
   'conditions': [
+    ['enable_protobuf==1', {
+      'targets': [
+        {
+          'target_name': 'acm_dump_proto',
+          'type': 'static_library',
+          'sources': ['dump.proto',],
+          'variables': {
+            'proto_in_dir': '.',
+            # Workaround to protect against gyp's pathname relativization when
+            # this file is included by modules.gyp.
+            'proto_out_protected': 'webrtc/audio_coding',
+            'proto_out_dir': '<(proto_out_protected)',
+          },
+          'includes': ['../../../../build/protoc.gypi',],
+        },
+      ]
+    }],
     ['include_tests==1', {
       'targets': [
         {
@@ -166,9 +164,10 @@
           'dependencies': [
             'audio_coding_module',
             '<(DEPTH)/testing/gtest.gyp:gtest',
+            '<(webrtc_root)/common.gyp:webrtc_common',
             '<(webrtc_root)/test/test.gyp:test_support',
-            '<(webrtc_root)/system_wrappers/source/system_wrappers.gyp:system_wrappers',
-            '<(webrtc_root)/system_wrappers/source/system_wrappers.gyp:field_trial_default',
+            '<(webrtc_root)/system_wrappers/system_wrappers.gyp:system_wrappers',
+            '<(webrtc_root)/system_wrappers/system_wrappers.gyp:system_wrappers_default',
             '<(DEPTH)/third_party/gflags/gflags.gyp:gflags',
           ],
           'sources': [
@@ -184,9 +183,10 @@
           'dependencies': [
             'audio_coding_module',
             '<(DEPTH)/testing/gtest.gyp:gtest',
+            '<(webrtc_root)/common.gyp:webrtc_common',
             '<(webrtc_root)/test/test.gyp:test_support',
-            '<(webrtc_root)/system_wrappers/source/system_wrappers.gyp:system_wrappers',
-            '<(webrtc_root)/system_wrappers/source/system_wrappers.gyp:field_trial_default',
+            '<(webrtc_root)/system_wrappers/system_wrappers.gyp:system_wrappers',
+            '<(webrtc_root)/system_wrappers/system_wrappers.gyp:system_wrappers_default',
             '<(DEPTH)/third_party/gflags/gflags.gyp:gflags',
           ],
           'sources': [

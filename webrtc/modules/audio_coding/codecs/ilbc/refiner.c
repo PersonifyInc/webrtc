@@ -75,13 +75,13 @@ void WebRtcIlbcfix_Refiner(
 
   /* Calculate the rescaling factor for the correlation in order to
      put the correlation in a int16_t vector instead */
-  maxtemp=WebRtcSpl_MaxAbsValueW32(corrVecTemp, (int16_t)corrdim);
+  maxtemp=WebRtcSpl_MaxAbsValueW32(corrVecTemp, corrdim);
 
   scalefact=WebRtcSpl_GetSizeInBits(maxtemp)-15;
 
   if (scalefact>0) {
     for (i=0;i<corrdim;i++) {
-      corrVec[i]=(int16_t)WEBRTC_SPL_RSHIFT_W32(corrVecTemp[i], scalefact);
+      corrVec[i] = (int16_t)(corrVecTemp[i] >> scalefact);
     }
   } else {
     for (i=0;i<corrdim;i++) {
@@ -97,11 +97,11 @@ void WebRtcIlbcfix_Refiner(
   WebRtcIlbcfix_EnhUpsample(corrVecUps,corrVec);
 
   /* Find maximum */
-  tloc=WebRtcSpl_MaxIndexW32(corrVecUps, (int16_t) (ENH_UPS0*corrdim));
+  tloc=WebRtcSpl_MaxIndexW32(corrVecUps, ENH_UPS0 * corrdim);
 
   /* make vector can be upsampled without ever running outside
      bounds */
-  *updStartPos = (int16_t)WEBRTC_SPL_MUL_16_16(searchSegStartPos,4) + tloc + 4;
+  *updStartPos = (int16_t)(searchSegStartPos * 4) + tloc + 4;
 
   tloc2 = (tloc + 3) >> 2;
 
@@ -127,7 +127,7 @@ void WebRtcIlbcfix_Refiner(
     }
   }
   /* Calculate which of the 4 fractions to use */
-  fraction=(int16_t)WEBRTC_SPL_MUL_16_16(tloc2,ENH_UPS0)-tloc;
+  fraction = (int16_t)(tloc2 * ENH_UPS0) - tloc;
 
   /* compute the segment (this is actually a convolution) */
 

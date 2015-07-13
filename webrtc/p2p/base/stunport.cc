@@ -11,6 +11,7 @@
 #include "webrtc/p2p/base/stunport.h"
 
 #include "webrtc/p2p/base/common.h"
+#include "webrtc/p2p/base/portallocator.h"
 #include "webrtc/p2p/base/stun.h"
 #include "webrtc/base/common.h"
 #include "webrtc/base/helpers.h"
@@ -38,11 +39,11 @@ class StunBindingRequest : public StunRequest {
 
   const rtc::SocketAddress& server_addr() const { return server_addr_; }
 
-  virtual void Prepare(StunMessage* request) {
+  virtual void Prepare(StunMessage* request) override {
     request->SetType(STUN_BINDING_REQUEST);
   }
 
-  virtual void OnResponse(StunMessage* response) {
+  virtual void OnResponse(StunMessage* response) override {
     const StunAddressAttribute* addr_attr =
         response->GetAddress(STUN_ATTR_MAPPED_ADDRESS);
     if (!addr_attr) {
@@ -64,7 +65,7 @@ class StunBindingRequest : public StunRequest {
     }
   }
 
-  virtual void OnErrorResponse(StunMessage* response) {
+  virtual void OnErrorResponse(StunMessage* response) override {
     const StunErrorCodeAttribute* attr = response->GetErrorCode();
     if (!attr) {
       LOG(LS_ERROR) << "Bad allocate response error code";
@@ -85,7 +86,7 @@ class StunBindingRequest : public StunRequest {
     }
   }
 
-  virtual void OnTimeout() {
+  virtual void OnTimeout() override {
     LOG(LS_ERROR) << "Binding request timed out from "
       << port_->GetLocalAddress().ToSensitiveString()
       << " (" << port_->Network()->name() << ")";
@@ -161,7 +162,9 @@ UDPPort::UDPPort(rtc::Thread* thread,
                  rtc::PacketSocketFactory* factory,
                  rtc::Network* network,
                  rtc::AsyncPacketSocket* socket,
-                 const std::string& username, const std::string& password)
+                 const std::string& username,
+                 const std::string& password,
+                 const std::string& origin)
     : Port(thread, factory, network, socket->GetLocalAddress().ipaddr(),
            username, password),
       requests_(thread),
@@ -169,13 +172,18 @@ UDPPort::UDPPort(rtc::Thread* thread,
       error_(0),
       ready_(false),
       stun_keepalive_delay_(KEEPALIVE_DELAY) {
+  requests_.set_origin(origin);
 }
 
 UDPPort::UDPPort(rtc::Thread* thread,
                  rtc::PacketSocketFactory* factory,
                  rtc::Network* network,
-                 const rtc::IPAddress& ip, int min_port, int max_port,
-                 const std::string& username, const std::string& password)
+                 const rtc::IPAddress& ip,
+                 uint16 min_port,
+                 uint16 max_port,
+                 const std::string& username,
+                 const std::string& password,
+                 const std::string& origin)
     : Port(thread, LOCAL_PORT_TYPE, factory, network, ip, min_port, max_port,
            username, password),
       requests_(thread),
@@ -183,6 +191,7 @@ UDPPort::UDPPort(rtc::Thread* thread,
       error_(0),
       ready_(false),
       stun_keepalive_delay_(KEEPALIVE_DELAY) {
+  requests_.set_origin(origin);
 }
 
 bool UDPPort::Init() {
@@ -378,8 +387,17 @@ void UDPPort::OnStunBindingRequestSucceeded(
   // For STUN, related address is the local socket address.
   if ((!SharedSocket() || stun_reflected_addr != socket_->GetLocalAddress()) &&
       !HasCandidateWithAddress(stun_reflected_addr)) {
+
+    rtc::SocketAddress related_address = socket_->GetLocalAddress();
+    if (!(candidate_filter() & CF_HOST)) {
+      // If candidate filter doesn't have CF_HOST specified, empty raddr to
+      // avoid local address leakage.
+      related_address = rtc::EmptySocketAddressWithFamily(
+          related_address.family());
+    }
+
     AddAddress(stun_reflected_addr, socket_->GetLocalAddress(),
-               socket_->GetLocalAddress(), UDP_PROTOCOL_NAME, "",
+               related_address, UDP_PROTOCOL_NAME, "",
                STUN_PORT_TYPE, ICE_TYPE_PREFERENCE_SRFLX, 0, false);
   }
   MaybeSetPortCompleteOrError();
