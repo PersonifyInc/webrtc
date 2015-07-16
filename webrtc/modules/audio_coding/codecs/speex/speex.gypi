@@ -13,8 +13,10 @@
       'type': 'static_library',
       'include_dirs': [
         'include',
-        '<(speex_include)',
         '<(webrtc_root)',
+      ],
+      'dependencies': [
+          '<(DEPTH)/chromium/src/third_party/speex/speex.gyp:libspeex',
       ],
       'direct_dependent_settings': {
         'include_dirs': [
@@ -26,20 +28,6 @@
         'include/speex_interface.h',
         'speex_interface.c',
       ],
-      'link_settings': {
-        'conditions': [
-            ['OS=="win"', {
-              'libraries':[
-                  '<(speex_lib)/libspeex.lib'
-                ],
-            }],
-            ['OS=="mac" or OS=="linux"', {
-              'libraries':[
-                  '<(speex_lib)/libspeex.a'
-                ],
-            }],
-        ],
-      },
     },
   ], # targets
 }
