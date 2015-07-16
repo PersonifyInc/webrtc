@@ -1,6 +1,6 @@
 /*
  * libjingle
- * Copyright 2012, Google Inc.
+ * Copyright 2012 Google Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -30,6 +30,7 @@
 #include "talk/app/webrtc/fakeportallocatorfactory.h"
 #include "talk/app/webrtc/mediastreaminterface.h"
 #include "talk/app/webrtc/peerconnectionfactory.h"
+#include "talk/app/webrtc/test/fakedtlsidentityservice.h"
 #include "talk/app/webrtc/test/fakevideotrackrenderer.h"
 #include "talk/app/webrtc/videosourceinterface.h"
 #include "talk/media/base/fakevideocapturer.h"
@@ -40,6 +41,7 @@
 #include "webrtc/base/thread.h"
 
 using webrtc::FakeVideoTrackRenderer;
+using webrtc::DataChannelInterface;
 using webrtc::MediaStreamInterface;
 using webrtc::PeerConnectionFactoryInterface;
 using webrtc::PeerConnectionInterface;
@@ -83,13 +85,13 @@ static const char kTurnIceServerWithIPv6Address[] =
 
 class NullPeerConnectionObserver : public PeerConnectionObserver {
  public:
-  virtual void OnError() {}
   virtual void OnMessage(const std::string& msg) {}
   virtual void OnSignalingMessage(const std::string& msg) {}
   virtual void OnSignalingChange(
       PeerConnectionInterface::SignalingState new_state) {}
   virtual void OnAddStream(MediaStreamInterface* stream) {}
   virtual void OnRemoveStream(MediaStreamInterface* stream) {}
+  virtual void OnDataChannel(DataChannelInterface* data_channel) {}
   virtual void OnRenegotiationNeeded() {}
   virtual void OnIceConnectionChange(
       PeerConnectionInterface::IceConnectionState new_state) {}
@@ -156,7 +158,8 @@ TEST(PeerConnectionFactoryTestInternal, CreatePCUsingInternalModules) {
   webrtc::PeerConnectionInterface::IceServers servers;
 
   rtc::scoped_refptr<PeerConnectionInterface> pc(
-      factory->CreatePeerConnection(servers, NULL, NULL, NULL, &observer));
+      factory->CreatePeerConnection(
+          servers, NULL, NULL, new FakeIdentityService(), &observer));
 
   EXPECT_TRUE(pc.get() != NULL);
 }
@@ -177,7 +180,39 @@ TEST_F(PeerConnectionFactoryTest, CreatePCUsingIceServers) {
   rtc::scoped_refptr<PeerConnectionInterface> pc(
       factory_->CreatePeerConnection(config, NULL,
                                      allocator_factory_.get(),
-                                     NULL,
+                                     new FakeIdentityService(),
+                                     &observer_));
+  EXPECT_TRUE(pc.get() != NULL);
+  StunConfigurations stun_configs;
+  webrtc::PortAllocatorFactoryInterface::StunConfiguration stun1(
+      "stun.l.google.com", 19302);
+  stun_configs.push_back(stun1);
+  VerifyStunConfigurations(stun_configs);
+  TurnConfigurations turn_configs;
+  webrtc::PortAllocatorFactoryInterface::TurnConfiguration turn1(
+      "test.com", 1234, "test@hello.com", kTurnPassword, "udp", false);
+  turn_configs.push_back(turn1);
+  webrtc::PortAllocatorFactoryInterface::TurnConfiguration turn2(
+      "hello.com", kDefaultStunPort, "test", kTurnPassword, "tcp", false);
+  turn_configs.push_back(turn2);
+  VerifyTurnConfigurations(turn_configs);
+}
+
+// This test verifies creation of PeerConnection with valid STUN and TURN
+// configuration. Also verifies the list of URL's parsed correctly as expected.
+TEST_F(PeerConnectionFactoryTest, CreatePCUsingIceServersUrls) {
+  PeerConnectionInterface::RTCConfiguration config;
+  webrtc::PeerConnectionInterface::IceServer ice_server;
+  ice_server.urls.push_back("");  // Empty URLs should be ignored.
+  ice_server.urls.push_back(kStunIceServer);
+  ice_server.urls.push_back(kTurnIceServer);
+  ice_server.urls.push_back(kTurnIceServerWithTransport);
+  ice_server.password = kTurnPassword;
+  config.servers.push_back(ice_server);
+  rtc::scoped_refptr<PeerConnectionInterface> pc(
+      factory_->CreatePeerConnection(config, NULL,
+                                     allocator_factory_.get(),
+                                     new FakeIdentityService(),
                                      &observer_));
   EXPECT_TRUE(pc.get() != NULL);
   StunConfigurations stun_configs;
@@ -213,7 +248,7 @@ TEST_F(PeerConnectionFactoryTest, CreatePCUsingIceServersOldSignature) {
   rtc::scoped_refptr<PeerConnectionInterface> pc(
       factory_->CreatePeerConnection(ice_servers, NULL,
                                      allocator_factory_.get(),
-                                     NULL,
+                                     new FakeIdentityService(),
                                      &observer_));
   EXPECT_TRUE(pc.get() != NULL);
   StunConfigurations stun_configs;
@@ -243,7 +278,7 @@ TEST_F(PeerConnectionFactoryTest, CreatePCUsingNoUsernameInUri) {
   rtc::scoped_refptr<PeerConnectionInterface> pc(
       factory_->CreatePeerConnection(config, NULL,
                                      allocator_factory_.get(),
-                                     NULL,
+                                     new FakeIdentityService(),
                                      &observer_));
   EXPECT_TRUE(pc.get() != NULL);
   TurnConfigurations turn_configs;
@@ -264,7 +299,7 @@ TEST_F(PeerConnectionFactoryTest, CreatePCUsingTurnUrlWithTransportParam) {
   rtc::scoped_refptr<PeerConnectionInterface> pc(
       factory_->CreatePeerConnection(config, NULL,
                                      allocator_factory_.get(),
-                                     NULL,
+                                     new FakeIdentityService(),
                                      &observer_));
   EXPECT_TRUE(pc.get() != NULL);
   TurnConfigurations turn_configs;
@@ -289,7 +324,7 @@ TEST_F(PeerConnectionFactoryTest, CreatePCUsingSecureTurnUrl) {
   rtc::scoped_refptr<PeerConnectionInterface> pc(
       factory_->CreatePeerConnection(config, NULL,
                                      allocator_factory_.get(),
-                                     NULL,
+                                     new FakeIdentityService(),
                                      &observer_));
   EXPECT_TRUE(pc.get() != NULL);
   TurnConfigurations turn_configs;
@@ -326,7 +361,7 @@ TEST_F(PeerConnectionFactoryTest, CreatePCUsingIPLiteralAddress) {
   rtc::scoped_refptr<PeerConnectionInterface> pc(
       factory_->CreatePeerConnection(config, NULL,
                                      allocator_factory_.get(),
-                                     NULL,
+                                     new FakeIdentityService(),
                                      &observer_));
   EXPECT_TRUE(pc.get() != NULL);
   StunConfigurations stun_configs;
@@ -376,3 +411,4 @@ TEST_F(PeerConnectionFactoryTest, LocalRendering) {
   EXPECT_TRUE(capturer->CaptureFrame());
   EXPECT_EQ(2, local_renderer.num_rendered_frames());
 }
+

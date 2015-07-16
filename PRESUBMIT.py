@@ -6,7 +6,11 @@
 # in the file PATENTS.  All contributing project authors may
 # be found in the AUTHORS file in the root of the source tree.
 
+import json
+import os
+import platform
 import re
+import subprocess
 import sys
 
 
@@ -23,11 +27,11 @@ def _CheckNoIOStreamInHeaders(input_api, output_api):
       files.append(f)
 
   if len(files):
-    return [ output_api.PresubmitError(
+    return [output_api.PresubmitError(
         'Do not #include <iostream> in header files, since it inserts static ' +
         'initialization into every file including the header. Instead, ' +
         '#include <ostream>. See http://crbug.com/94794',
-        files) ]
+        files)]
   return []
 
 
@@ -78,8 +82,8 @@ def _CheckApprovedFilesLintClean(input_api, output_api,
   verbosity_level = 1
   files = []
   for f in input_api.AffectedSourceFiles(source_file_filter):
-    # Note that moved/renamed files also count as added for svn.
-    if (f.Action() == 'A'):
+    # Note that moved/renamed files also count as added.
+    if f.Action() == 'A':
       files.append(f.AbsoluteLocalPath())
 
   for file_name in files:
@@ -104,7 +108,8 @@ def _CheckNoRtcBaseDeps(input_api, gyp_files, output_api):
         'base_tests.gyp',
         'desktop_capture.gypi',
         'libjingle.gyp',
-        'libjingle_tests.gyp'
+        'libjingle_tests.gyp',
+        'p2p.gyp',
         'sound.gyp',
         'webrtc_test_common.gyp',
         'webrtc_tests.gypi',
@@ -122,13 +127,42 @@ def _CheckNoRtcBaseDeps(input_api, gyp_files, output_api):
         items=violating_files)]
   return []
 
+def _CheckNoSourcesAboveGyp(input_api, gyp_files, output_api):
+  # Disallow referencing source files with paths above the GYP file location.
+  source_pattern = input_api.re.compile(r'sources.*?\[(.*?)\]',
+                                        re.MULTILINE | re.DOTALL)
+  file_pattern = input_api.re.compile(r"'((\.\./.*?)|(<\(webrtc_root\).*?))'")
+  violating_gyp_files = set()
+  violating_source_entries = []
+  for gyp_file in gyp_files:
+    contents = input_api.ReadFile(gyp_file)
+    for source_block_match in source_pattern.finditer(contents):
+      # Find all source list entries starting with ../ in the source block
+      # (exclude overrides entries).
+      for file_list_match in file_pattern.finditer(source_block_match.group(0)):
+        source_file = file_list_match.group(0)
+        if 'overrides/' not in source_file:
+          violating_source_entries.append(source_file)
+          violating_gyp_files.add(gyp_file)
+  if violating_gyp_files:
+    return [output_api.PresubmitError(
+        'Referencing source files above the directory of the GYP file is not '
+        'allowed. Please introduce new GYP targets and/or GYP files in the '
+        'proper location instead.\n'
+        'Invalid source entries:\n'
+        '%s\n'
+        'Violating GYP files:' % '\n'.join(violating_source_entries),
+        items=violating_gyp_files)]
+  return []
+
 def _CheckGypChanges(input_api, output_api):
   source_file_filter = lambda x: input_api.FilterSourceFile(
       x, white_list=(r'.+\.(gyp|gypi)$',))
 
   gyp_files = []
   for f in input_api.AffectedSourceFiles(source_file_filter):
-    gyp_files.append(f)
+    if f.LocalPath().startswith('webrtc'):
+      gyp_files.append(f)
 
   result = []
   if gyp_files:
@@ -137,6 +171,7 @@ def _CheckGypChanges(input_api, output_api):
         'BUILD.gn files are also updated.\nChanged GYP files:',
         items=gyp_files))
     result.extend(_CheckNoRtcBaseDeps(input_api, gyp_files, output_api))
+    result.extend(_CheckNoSourcesAboveGyp(input_api, gyp_files, output_api))
   return result
 
 def _CheckUnwantedDependencies(input_api, output_api):
@@ -151,8 +186,13 @@ def _CheckUnwantedDependencies(input_api, output_api):
   # eval-ed and thus doesn't have __file__.
   original_sys_path = sys.path
   try:
-    sys.path = sys.path + [input_api.os_path.join(
-        input_api.PresubmitLocalPath(), 'buildtools', 'checkdeps')]
+    checkdeps_path = input_api.os_path.join(input_api.PresubmitLocalPath(),
+                                            'buildtools', 'checkdeps')
+    if not os.path.exists(checkdeps_path):
+      return [output_api.PresubmitError(
+          'Cannot find checkdeps at %s\nHave you run "gclient sync" to '
+          'download Chromium and setup the symlinks?' % checkdeps_path)]
+    sys.path.append(checkdeps_path)
     import checkdeps
     from cpp_checker import CppChecker
     from rules import Rule
@@ -165,7 +205,7 @@ def _CheckUnwantedDependencies(input_api, output_api):
     if not CppChecker.IsCppFile(f.LocalPath()):
       continue
 
-    changed_lines = [line for _line_num, line in f.ChangedContents()]
+    changed_lines = [line for _, line in f.ChangedContents()]
     added_includes.append([f.LocalPath(), changed_lines])
 
   deps_checker = checkdeps.DepsChecker(input_api.PresubmitLocalPath())
@@ -194,41 +234,64 @@ def _CheckUnwantedDependencies(input_api, output_api):
   return results
 
 
+def _RunPythonTests(input_api, output_api):
+  def join(*args):
+    return input_api.os_path.join(input_api.PresubmitLocalPath(), *args)
+
+  test_directories = [
+    join('tools', 'autoroller', 'unittests'),
+  ]
+
+  tests = []
+  for directory in test_directories:
+    tests.extend(
+      input_api.canned_checks.GetUnitTestsInDirectory(
+          input_api,
+          output_api,
+          directory,
+          whitelist=[r'.+_test\.py$']))
+  return input_api.RunTests(tests, parallel=True)
+
+
 def _CommonChecks(input_api, output_api):
   """Checks common to both upload and commit."""
-  # TODO(kjellander): Use presubmit_canned_checks.PanProjectChecks too.
   results = []
   results.extend(input_api.canned_checks.RunPylint(input_api, output_api,
       black_list=(r'^.*gviz_api\.py$',
                   r'^.*gaeunit\.py$',
                   # Embedded shell-script fakes out pylint.
-                  r'^build/.*\.py$',
-                  r'^buildtools/.*\.py$',
-                  r'^chromium/.*\.py$',
-                  r'^out.*/.*\.py$',
-                  r'^talk/site_scons/site_tools/talk_linux.py$',
-                  r'^testing/.*\.py$',
-                  r'^third_party/.*\.py$',
-                  r'^tools/clang/.*\.py$',
-                  r'^tools/gn/.*\.py$',
-                  r'^tools/gyp/.*\.py$',
-                  r'^tools/perf_expectations/.*\.py$',
-                  r'^tools/protoc_wrapper/.*\.py$',
-                  r'^tools/python/.*\.py$',
-                  r'^tools/python_charts/data/.*\.py$',
-                  r'^tools/refactoring/.*\.py$',
-                  r'^tools/swarming_client/.*\.py$',
+                  r'^build[\\\/].*\.py$',
+                  r'^buildtools[\\\/].*\.py$',
+                  r'^chromium[\\\/].*\.py$',
+                  r'^google_apis[\\\/].*\.py$',
+                  r'^net.*[\\\/].*\.py$',
+                  r'^out.*[\\\/].*\.py$',
+                  r'^testing[\\\/].*\.py$',
+                  r'^third_party[\\\/].*\.py$',
+                  r'^tools[\\\/]find_depot_tools.py$',
+                  r'^tools[\\\/]clang[\\\/].*\.py$',
+                  r'^tools[\\\/]generate_library_loader[\\\/].*\.py$',
+                  r'^tools[\\\/]gn[\\\/].*\.py$',
+                  r'^tools[\\\/]gyp[\\\/].*\.py$',
+                  r'^tools[\\\/]protoc_wrapper[\\\/].*\.py$',
+                  r'^tools[\\\/]python[\\\/].*\.py$',
+                  r'^tools[\\\/]python_charts[\\\/]data[\\\/].*\.py$',
+                  r'^tools[\\\/]refactoring[\\\/].*\.py$',
+                  r'^tools[\\\/]swarming_client[\\\/].*\.py$',
+                  r'^tools[\\\/]vim[\\\/].*\.py$',
                   # TODO(phoglund): should arguably be checked.
-                  r'^tools/valgrind-webrtc/.*\.py$',
-                  r'^tools/valgrind/.*\.py$',
-                  # TODO(phoglund): should arguably be checked.
-                  r'^webrtc/build/.*\.py$',
-                  r'^xcodebuild.*/.*\.py$',),
-
+                  r'^tools[\\\/]valgrind-webrtc[\\\/].*\.py$',
+                  r'^tools[\\\/]valgrind[\\\/].*\.py$',
+                  r'^tools[\\\/]win[\\\/].*\.py$',
+                  r'^xcodebuild.*[\\\/].*\.py$',),
       disabled_warnings=['F0401',  # Failed to import x
                          'E0611',  # No package y in x
                          'W0232',  # Class has no __init__ method
-                        ]))
+                        ],
+      pylintrc='pylintrc'))
+  # WebRTC can't use the presubmit_canned_checks.PanProjectChecks function since
+  # we need to have different license checks in talk/ and webrtc/ directories.
+  # Instead, hand-picked checks are included below.
   results.extend(input_api.canned_checks.CheckLongLines(
       input_api, output_api, maxlen=80))
   results.extend(input_api.canned_checks.CheckChangeHasNoTabs(
@@ -242,12 +305,15 @@ def _CommonChecks(input_api, output_api):
   results.extend(_CheckNoFRIEND_TEST(input_api, output_api))
   results.extend(_CheckGypChanges(input_api, output_api))
   results.extend(_CheckUnwantedDependencies(input_api, output_api))
+  results.extend(_RunPythonTests(input_api, output_api))
   return results
 
 
 def CheckChangeOnUpload(input_api, output_api):
   results = []
   results.extend(_CommonChecks(input_api, output_api))
+  results.extend(
+      input_api.canned_checks.CheckGNFormatted(input_api, output_api))
   return results
 
 
@@ -269,71 +335,26 @@ def CheckChangeOnCommit(input_api, output_api):
   return results
 
 
-def GetDefaultTryConfigs(bots=None):
-  """Returns a list of ('bot', set(['tests']), optionally filtered by [bots].
-
-  For WebRTC purposes, we always return an empty list of tests, since we want
-  to run all tests by default on all our trybots.
-  """
-  return { 'tryserver.webrtc': dict((bot, []) for bot in bots)}
-
-
 # pylint: disable=W0613
 def GetPreferredTryMasters(project, change):
-  files = change.LocalPaths()
+  cq_config_path = os.path.join(
+      change.RepositoryRoot(), 'infra', 'config', 'cq.cfg')
+  # commit_queue.py below is a script in depot_tools directory, which has a
+  # 'builders' command to retrieve a list of CQ builders from the CQ config.
+  is_win = platform.system() == 'Windows'
+  masters = json.loads(subprocess.check_output(
+      ['commit_queue', 'builders', cq_config_path], shell=is_win))
 
-  android_gn_bots = [
-      'android_gn',
-      'android_gn_rel',
-  ]
-  android_bots = [
-      'android',
-      'android_arm64',
-      'android_rel',
-      'android_clang',
-  ] + android_gn_bots
-  ios_bots = [
-      'ios',
-      'ios_rel',
-  ]
-  linux_gn_bots = [
-      'linux_gn',
-      'linux_gn_rel',
-  ]
-  linux_bots = [
-      'linux',
-      'linux_asan',
-      'linux_baremetal',
-      'linux_rel',
-      'linux_tsan2',
-  ] + linux_gn_bots
-  mac_bots = [
-      'mac',
-      'mac_asan',
-      'mac_baremetal',
-      'mac_rel',
-      'mac_x64_rel',
-  ]
-  win_bots = [
-      'win',
-      'win_asan',
-      'win_baremetal',
-      'win_drmemory_light',
-      'win_rel',
-      'win_x64_rel',
-  ]
-  if not files or all(re.search(r'[\\/]OWNERS$', f) for f in files):
-    return {}
-  if all(re.search(r'[\\/]BUILD.gn$', f) for f in files):
-    return GetDefaultTryConfigs(android_gn_bots + linux_gn_bots)
-  if all(re.search('\.(m|mm)$|(^|[/_])mac[/_.]', f) for f in files):
-    return GetDefaultTryConfigs(mac_bots)
-  if all(re.search('(^|[/_])win[/_.]', f) for f in files):
-    return GetDefaultTryConfigs(win_bots)
-  if all(re.search('(^|[/_])android[/_.]', f) for f in files):
-    return GetDefaultTryConfigs(android_bots)
-  if all(re.search('[/_]ios[/_.]', f) for f in files):
-    return GetDefaultTryConfigs(ios_bots)
+  try_config = {}
+  for master in masters:
+    try_config.setdefault(master, {})
+    for builder in masters[master]:
+      if 'presubmit' in builder:
+        # Do not trigger presubmit builders, since they're likely to fail
+        # (e.g. OWNERS checks before finished code review), and we're running
+        # local presubmit anyway.
+        pass
+      else:
+        try_config[master][builder] = ['defaulttests']
 
-  return GetDefaultTryConfigs(android_bots + ios_bots + linux_bots + mac_bots +
-                              win_bots)
+  return try_config

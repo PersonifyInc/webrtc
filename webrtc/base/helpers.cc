@@ -17,13 +17,19 @@
 #if defined(SSL_USE_OPENSSL)
 #include <openssl/rand.h>
 #elif defined(SSL_USE_NSS_RNG)
+// Hack: Define+undefine int64 and uint64 to avoid typedef conflict with NSS.
+// TODO(kjellander): Remove when webrtc:4497 is completed.
+#define uint64 foo_uint64
+#define int64 foo_int64
 #include "pk11func.h"
+#undef uint64
+#undef int64
 #else
 #if defined(WEBRTC_WIN)
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <ntsecapi.h>
-#endif  // WEBRTC_WIN 
+#endif  // WEBRTC_WIN
 #endif  // else
 #endif  // FEATURE_ENABLED_SSL
 
@@ -47,36 +53,15 @@ class RandomGenerator {
 };
 
 #if defined(SSL_USE_OPENSSL)
-// The OpenSSL RNG. Need to make sure it doesn't run out of entropy.
+// The OpenSSL RNG.
 class SecureRandomGenerator : public RandomGenerator {
  public:
-  SecureRandomGenerator() : inited_(false) {
-  }
-  ~SecureRandomGenerator() {
-  }
-  virtual bool Init(const void* seed, size_t len) {
-    // By default, seed from the system state.
-    if (!inited_) {
-      if (RAND_poll() <= 0) {
-        return false;
-      }
-      inited_ = true;
-    }
-    // Allow app data to be mixed in, if provided.
-    if (seed) {
-      RAND_seed(seed, len);
-    }
-    return true;
-  }
-  virtual bool Generate(void* buf, size_t len) {
-    if (!inited_ && !Init(NULL, 0)) {
-      return false;
-    }
+  SecureRandomGenerator() {}
+  ~SecureRandomGenerator() override {}
+  bool Init(const void* seed, size_t len) override { return true; }
+  bool Generate(void* buf, size_t len) override {
     return (RAND_bytes(reinterpret_cast<unsigned char*>(buf), len) > 0);
   }
-
- private:
-  bool inited_;
 };
 
 #elif defined(SSL_USE_NSS_RNG)
@@ -84,11 +69,9 @@ class SecureRandomGenerator : public RandomGenerator {
 class SecureRandomGenerator : public RandomGenerator {
  public:
   SecureRandomGenerator() {}
-  ~SecureRandomGenerator() {}
-  virtual bool Init(const void* seed, size_t len) {
-    return true;
-  }
-  virtual bool Generate(void* buf, size_t len) {
+  ~SecureRandomGenerator() override {}
+  bool Init(const void* seed, size_t len) override { return true; }
+  bool Generate(void* buf, size_t len) override {
     return (PK11_GenerateRandom(reinterpret_cast<unsigned char*>(buf),
                                 static_cast<int>(len)) == SECSuccess);
   }
@@ -164,7 +147,7 @@ class SecureRandomGenerator : public RandomGenerator {
 
 #error No SSL implementation has been selected!
 
-#endif  // WEBRTC_WIN 
+#endif  // WEBRTC_WIN
 #endif
 
 // A test random generator, for predictable output.
@@ -172,12 +155,10 @@ class TestRandomGenerator : public RandomGenerator {
  public:
   TestRandomGenerator() : seed_(7) {
   }
-  ~TestRandomGenerator() {
+  ~TestRandomGenerator() override {
   }
-  virtual bool Init(const void* seed, size_t len) {
-    return true;
-  }
-  virtual bool Generate(void* buf, size_t len) {
+  bool Init(const void* seed, size_t len) override { return true; }
+  bool Generate(void* buf, size_t len) override {
     for (size_t i = 0; i < len; ++i) {
       static_cast<uint8*>(buf)[i] = static_cast<uint8>(GetRandom());
     }
@@ -205,8 +186,8 @@ namespace {
 // This round about way of creating a global RNG is to safe-guard against
 // indeterminant static initialization order.
 scoped_ptr<RandomGenerator>& GetGlobalRng() {
-  LIBJINGLE_DEFINE_STATIC_LOCAL(scoped_ptr<RandomGenerator>, global_rng,
-                                (new SecureRandomGenerator()));
+  RTC_DEFINE_STATIC_LOCAL(scoped_ptr<RandomGenerator>, global_rng,
+                          (new SecureRandomGenerator()));
   return global_rng;
 }
 

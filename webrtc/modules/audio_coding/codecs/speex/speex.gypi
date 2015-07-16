@@ -27,6 +27,7 @@
       'sources': [
         'include/speex_interface.h',
         'speex_interface.c',
+        'audio_encoder_speex.cc',
       ],
     },
   ], # targets

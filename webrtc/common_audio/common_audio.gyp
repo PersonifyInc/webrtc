@@ -15,7 +15,7 @@
       'target_name': 'common_audio',
       'type': 'static_library',
       'dependencies': [
-        '<(webrtc_root)/system_wrappers/source/system_wrappers.gyp:system_wrappers',
+        '<(webrtc_root)/system_wrappers/system_wrappers.gyp:system_wrappers',
       ],
       'include_dirs': [
         'resampler/include',
@@ -29,14 +29,28 @@
         ],
       },
       'sources': [
+        'audio_converter.cc',
+        'audio_converter.h',
+        'audio_ring_buffer.cc',
+        'audio_ring_buffer.h',
         'audio_util.cc',
         'blocker.cc',
         'blocker.h',
+        'channel_buffer.cc',
+        'channel_buffer.h',
+        'fft4g.c',
+        'fft4g.h',
         'fir_filter.cc',
         'fir_filter.h',
         'fir_filter_neon.h',
         'fir_filter_sse.h',
         'include/audio_util.h',
+        'lapped_transform.cc',
+        'lapped_transform.h',
+        'real_fourier.cc',
+        'real_fourier.h',
+        'real_fourier_ooura.cc',
+        'real_fourier_ooura.h',
         'resampler/include/push_resampler.h',
         'resampler/include/resampler.h',
         'resampler/push_resampler.cc',
@@ -45,6 +59,8 @@
         'resampler/resampler.cc',
         'resampler/sinc_resampler.cc',
         'resampler/sinc_resampler.h',
+        'ring_buffer.c',
+        'ring_buffer.h',
         'signal_processing/include/real_fft.h',
         'signal_processing/include/signal_processing_library.h',
         'signal_processing/include/spl_inl.h',
@@ -83,7 +99,11 @@
         'signal_processing/splitting_filter.c',
         'signal_processing/sqrt_of_one_minus_x_squared.c',
         'signal_processing/vector_scaling_operations.c',
+        'sparse_fir_filter.cc',
+        'sparse_fir_filter.h',
+        'vad/include/vad.h',
         'vad/include/webrtc_vad.h',
+        'vad/vad.cc',
         'vad/webrtc_vad.c',
         'vad/vad_core.c',
         'vad/vad_core.h',
@@ -95,27 +115,31 @@
         'vad/vad_sp.h',
         'wav_header.cc',
         'wav_header.h',
-        'wav_writer.cc',
-        'wav_writer.h',
+        'wav_file.cc',
+        'wav_file.h',
         'window_generator.cc',
         'window_generator.h',
       ],
       'conditions': [
         ['rtc_use_openmax_dl==1', {
           'sources': [
-            'lapped_transform.cc',
-            'lapped_transform.h',
-            'real_fourier.cc',
-            'real_fourier.h',
+            'real_fourier_openmax.cc',
+            'real_fourier_openmax.h',
           ],
-          'dependencies': [
-            '<(DEPTH)/third_party/openmax_dl/dl/dl.gyp:openmax_dl',
+          'defines': ['RTC_USE_OPENMAX_DL',],
+          'conditions': [
+            ['build_openmax_dl==1', {
+              'dependencies': ['<(DEPTH)/third_party/openmax_dl/dl/dl.gyp:openmax_dl',],
+            }],
           ],
         }],
         ['target_arch=="ia32" or target_arch=="x64"', {
           'dependencies': ['common_audio_sse2',],
         }],
-        ['target_arch=="arm" or target_arch=="armv7"', {
+        ['build_with_neon==1', {
+          'dependencies': ['common_audio_neon',],
+        }],
+        ['target_arch=="arm"', {
           'sources': [
             'signal_processing/complex_bit_reverse_arm.S',
             'signal_processing/spl_sqrt_floor_arm.S',
@@ -125,8 +149,7 @@
             'signal_processing/spl_sqrt_floor.c',
           ],
           'conditions': [
-            ['arm_version==7', {
-              'dependencies': ['common_audio_neon',],
+            ['arm_version>=7', {
               'sources': [
                 'signal_processing/filter_ar_fast_q12_armv7.S',
               ],
@@ -136,7 +159,7 @@
             }],
           ],  # conditions
         }],
-        ['target_arch=="mipsel"', {
+        ['target_arch=="mipsel" and mips_arch_variant!="r6"', {
           'sources': [
             'signal_processing/include/spl_inl_mips.h',
             'signal_processing/complex_bit_reverse_mips.c',
@@ -177,14 +200,18 @@
             'fir_filter_sse.cc',
             'resampler/sinc_resampler_sse.cc',
           ],
-          'cflags': ['-msse2',],
-          'xcode_settings': {
-            'OTHER_CFLAGS': ['-msse2',],
-          },
+          'conditions': [
+            ['os_posix==1', {
+              'cflags': [ '-msse2', ],
+              'xcode_settings': {
+                'OTHER_CFLAGS': [ '-msse2', ],
+              },
+            }],
+          ],
         },
       ],  # targets
     }],
-    ['(target_arch=="arm" and arm_version==7) or target_arch=="armv7"', {
+    ['build_with_neon==1', {
       'targets': [
         {
           'target_name': 'common_audio_neon',
@@ -193,19 +220,9 @@
           'sources': [
             'fir_filter_neon.cc',
             'resampler/sinc_resampler_neon.cc',
-            'signal_processing/cross_correlation_neon.S',
-            'signal_processing/downsample_fast_neon.S',
-            'signal_processing/min_max_operations_neon.S',
-            'signal_processing/vector_scaling_operations_neon.S',
-          ],
-          'conditions': [
-            # Disable LTO in common_audio_neon target due to compiler bug
-            ['use_lto==1', {
-              'cflags!': [
-                '-flto',
-                '-ffat-lto-objects',
-              ],
-            }],
+            'signal_processing/cross_correlation_neon.c',
+            'signal_processing/downsample_fast_neon.c',
+            'signal_processing/min_max_operations_neon.c',
           ],
         },
       ],  # targets
@@ -222,17 +239,23 @@
             '<(DEPTH)/testing/gtest.gyp:gtest',
           ],
           'sources': [
+            'audio_converter_unittest.cc',
+            'audio_ring_buffer_unittest.cc',
             'audio_util_unittest.cc',
             'blocker_unittest.cc',
             'fir_filter_unittest.cc',
+            'lapped_transform_unittest.cc',
+            'real_fourier_unittest.cc',
             'resampler/resampler_unittest.cc',
             'resampler/push_resampler_unittest.cc',
             'resampler/push_sinc_resampler_unittest.cc',
             'resampler/sinc_resampler_unittest.cc',
             'resampler/sinusoidal_linear_chirp_source.cc',
             'resampler/sinusoidal_linear_chirp_source.h',
+            'ring_buffer_unittest.cc',
             'signal_processing/real_fft_unittest.cc',
             'signal_processing/signal_processing_unittest.cc',
+            'sparse_fir_filter_unittest.cc',
             'vad/vad_core_unittest.cc',
             'vad/vad_filterbank_unittest.cc',
             'vad/vad_gmm_unittest.cc',
@@ -240,15 +263,12 @@
             'vad/vad_unittest.cc',
             'vad/vad_unittest.h',
             'wav_header_unittest.cc',
-            'wav_writer_unittest.cc',
+            'wav_file_unittest.cc',
             'window_generator_unittest.cc',
           ],
           'conditions': [
             ['rtc_use_openmax_dl==1', {
-              'sources': [
-                'lapped_transform_unittest.cc',
-                'real_fourier_unittest.cc',
-              ],
+              'defines': ['RTC_USE_OPENMAX_DL',],
             }],
             ['OS=="android"', {
               'dependencies': [
@@ -280,7 +300,6 @@
               ],
               'includes': [
                 '../build/isolate.gypi',
-                'common_audio_unittests.isolate',
               ],
               'sources': [
                 'common_audio_unittests.isolate',
