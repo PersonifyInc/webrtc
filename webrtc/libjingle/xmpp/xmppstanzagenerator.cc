@@ -3,6 +3,21 @@
 #include <time.h>
 #include <sstream>
 
+static std::string lower_string(std::string const& input)
+{
+    std::string output(input.size(), '0');
+
+    std::transform(std::begin(input), std::end(input), std::begin(output),
+                   [](char c)
+    {
+        return tolower(c, std::locale());
+    });
+
+    // We need move at return side because
+    // VS2012 does not implement automatic std::move for return
+    return std::move(output);
+}
+
 namespace buzz{
 
   XmppStanzaGenerator::XmppStanzaGenerator(const std::string& host, const std::string& lang) : host_(host), lang_(lang){};
@@ -53,7 +68,7 @@ namespace buzz{
   {
     path_ = (port == buzz::HTTP_PORT) ? "http://" : "https://";
     path_ += server + "/http-bind/";
-    bosh_host_ = server + ":" + std::to_string((long)port);
+    bosh_host_ = server + ":" + to_string((long)port);
   }
 
   BoshXmppStanzaGenerator::~BoshXmppStanzaGenerator()
@@ -100,7 +115,7 @@ namespace buzz{
   {
     ++rid_;
     std::string requestbody = "<body ";
-    requestbody += "rid=\'" + std::to_string((long)rid_) + "\' ";
+    requestbody += "rid=\'" + to_string((long)rid_) + "\' ";
     requestbody += "sid=\'" + sid_ + "\' ";
     requestbody += "type=\'terminate\' ";
     requestbody += "xmlns=\'" + kXmlnsHttpbind + "\'/>";
@@ -120,10 +135,10 @@ namespace buzz{
     requestbody += "xmlns:xmpp=\'" + kXmlnsXmppBosh + "\' ";
     requestbody += "content=\'text/xml; charset=utf-8\' ";
     requestbody += "to=\'" + host_ + "\' ";
-    requestbody += "rid=\'" + std::to_string((long)rid_) + "\' ";
-    requestbody += "wait=\'" + std::to_string(wait_) + "\' ";
-    requestbody += "hold=\'" + std::to_string(hold_) + "\' ";
-    requestbody += "route=\'xmpp:" + server_ + ":" + std::to_string(XMPP_PORT) + "\' ";
+    requestbody += "rid=\'" + to_string((long)rid_) + "\' ";
+    requestbody += "wait=\'" + to_string(wait_) + "\' ";
+    requestbody += "hold=\'" + to_string(hold_) + "\' ";
+    requestbody += "route=\'xmpp:" + server_ + ":" + to_string(XMPP_PORT) + "\' ";
     requestbody += "xmpp:version=\'1.0\' ";
     requestbody += "/>";
     return requestbody;
@@ -135,7 +150,7 @@ namespace buzz{
     ++rid_;
     std::string requestbody = "<body ";
     requestbody += "xmlns=\'" + kXmlnsHttpbind + "\' ";
-    requestbody += "rid=\'" + std::to_string((long)rid_) + "\' ";
+    requestbody += "rid=\'" + to_string((long)rid_) + "\' ";
     requestbody += "sid=\'" + sid_ + "\'/>";
     return requestbody;
   }
@@ -146,7 +161,7 @@ namespace buzz{
     std::string requestbody = "<body ";
     requestbody += "xmlns=\'" + kXmlnsHttpbind + "\' ";
     requestbody += "xmlns:xmpp=\'" + kXmlnsXmppBosh + "\' ";
-    requestbody += "rid=\'" + std::to_string((long)rid_) + "\' ";
+    requestbody += "rid=\'" + to_string((long)rid_) + "\' ";
     requestbody += "sid=\'" + sid_ + "\' ";
     requestbody += "xmpp:restart=\'true\' ";
     requestbody += "to=\'" + host_ + "\' ";
@@ -161,7 +176,7 @@ namespace buzz{
     std::string requestbody = "<body ";
 
     requestbody += "xmlns=\'" + kXmlnsHttpbind + "\' ";
-    requestbody += "rid=\'" + std::to_string((long)rid_) + "\' ";
+    requestbody += "rid=\'" + to_string((long)rid_) + "\' ";
     requestbody += "sid=\'" + sid_ + "\'>";
     requestbody += xml;
     requestbody += "</body>";
@@ -174,7 +189,7 @@ namespace buzz{
     std::string request = "POST " + path_ + " HTTP/1.1\r\n";
     request += "Host: " + bosh_host_ + "\r\n";
     request += "Content-Type: text/xml; charset=utf-8\r\n";
-    request += "Content-Length: " + std::to_string((long)str.length()) + "\r\n\r\n";
+    request += "Content-Length: " + to_string((long)str.length()) + "\r\n\r\n";
     request += str;
 
     return request;
