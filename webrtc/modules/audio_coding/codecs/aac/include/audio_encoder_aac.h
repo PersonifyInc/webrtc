@@ -15,7 +15,7 @@
 
 #include "webrtc/base/scoped_ptr.h"
 #include "webrtc/modules/audio_coding/codecs/audio_encoder_mutable_impl.h"
-#include "webrtc/modules/audio_coding/codecs/aac/include/Aac_interface.h"
+#include "webrtc/modules/audio_coding/codecs/aac/include/aac_interface.h"
 #include "webrtc/modules/audio_coding/codecs/audio_encoder.h"
 
 namespace webrtc
