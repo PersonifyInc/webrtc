@@ -72,20 +72,20 @@ class NATSocket : public AsyncSocket, public sigslot::has_slots<> {
         socket_(NULL), buf_(NULL), size_(0) {
   }
 
-  virtual ~NATSocket() {
+  ~NATSocket() override {
     delete socket_;
     delete[] buf_;
   }
 
-  virtual SocketAddress GetLocalAddress() const {
+  SocketAddress GetLocalAddress() const override {
     return (socket_) ? socket_->GetLocalAddress() : SocketAddress();
   }
 
-  virtual SocketAddress GetRemoteAddress() const {
+  SocketAddress GetRemoteAddress() const override {
     return remote_addr_;  // will be NIL if not connected
   }
 
-  virtual int Bind(const SocketAddress& addr) {
+  int Bind(const SocketAddress& addr) override {
     if (socket_) {  // already bound, bubble up error
       return -1;
     }
@@ -107,7 +107,7 @@ class NATSocket : public AsyncSocket, public sigslot::has_slots<> {
     return result;
   }
 
-  virtual int Connect(const SocketAddress& addr) {
+  int Connect(const SocketAddress& addr) override {
     if (!socket_) {  // socket must be bound, for now
       return -1;
     }
@@ -126,12 +126,14 @@ class NATSocket : public AsyncSocket, public sigslot::has_slots<> {
     return result;
   }
 
-  virtual int Send(const void* data, size_t size) {
+  int Send(const void* data, size_t size) override {
     ASSERT(connected_);
     return SendTo(data, size, remote_addr_);
   }
 
-  virtual int SendTo(const void* data, size_t size, const SocketAddress& addr) {
+  int SendTo(const void* data,
+             size_t size,
+             const SocketAddress& addr) override {
     ASSERT(!connected_ || addr == remote_addr_);
     if (server_addr_.IsNil() || type_ == SOCK_STREAM) {
       return socket_->SendTo(data, size, addr);
@@ -151,12 +153,12 @@ class NATSocket : public AsyncSocket, public sigslot::has_slots<> {
     return result;
   }
 
-  virtual int Recv(void* data, size_t size) {
+  int Recv(void* data, size_t size) override {
     SocketAddress addr;
     return RecvFrom(data, size, &addr);
   }
 
-  virtual int RecvFrom(void* data, size_t size, SocketAddress *out_addr) {
+  int RecvFrom(void* data, size_t size, SocketAddress* out_addr) override {
     if (server_addr_.IsNil() || type_ == SOCK_STREAM) {
       return socket_->RecvFrom(data, size, out_addr);
     }
@@ -177,8 +179,7 @@ class NATSocket : public AsyncSocket, public sigslot::has_slots<> {
 
       // Decode the wire packet into the actual results.
       SocketAddress real_remote_addr;
-      size_t addrlength =
-          UnpackAddressFromNAT(buf_, result, &real_remote_addr);
+      size_t addrlength = UnpackAddressFromNAT(buf_, result, &real_remote_addr);
       memcpy(data, buf_ + addrlength, result - addrlength);
 
       // Make sure this packet should be delivered before returning it.
@@ -196,7 +197,7 @@ class NATSocket : public AsyncSocket, public sigslot::has_slots<> {
     return result;
   }
 
-  virtual int Close() {
+  int Close() override {
     int result = 0;
     if (socket_) {
       result = socket_->Close();
@@ -210,33 +211,25 @@ class NATSocket : public AsyncSocket, public sigslot::has_slots<> {
     return result;
   }
 
-  virtual int Listen(int backlog) {
-    return socket_->Listen(backlog);
-  }
-  virtual AsyncSocket* Accept(SocketAddress *paddr) {
+  int Listen(int backlog) override { return socket_->Listen(backlog); }
+  AsyncSocket* Accept(SocketAddress* paddr) override {
     return socket_->Accept(paddr);
   }
-  virtual int GetError() const {
-    return socket_->GetError();
-  }
-  virtual void SetError(int error) {
-    socket_->SetError(error);
-  }
-  virtual ConnState GetState() const {
+  int GetError() const override { return socket_->GetError(); }
+  void SetError(int error) override { socket_->SetError(error); }
+  ConnState GetState() const override {
     return connected_ ? CS_CONNECTED : CS_CLOSED;
   }
-  virtual int EstimateMTU(uint16* mtu) {
-    return socket_->EstimateMTU(mtu);
-  }
-  virtual int GetOption(Option opt, int* value) {
+  int EstimateMTU(uint16* mtu) override { return socket_->EstimateMTU(mtu); }
+  int GetOption(Option opt, int* value) override {
     return socket_->GetOption(opt, value);
   }
-  virtual int SetOption(Option opt, int value) {
+  int SetOption(Option opt, int value) override {
     return socket_->SetOption(opt, value);
   }
 
   void OnConnectEvent(AsyncSocket* socket) {
-    // If we're NATed, we need to send a request with the real addr to use.
+    // If we're NATed, we need to send a message with the real addr to use.
     ASSERT(socket == socket_);
     if (server_addr_.IsNil()) {
       connected_ = true;
@@ -275,7 +268,7 @@ class NATSocket : public AsyncSocket, public sigslot::has_slots<> {
 
   // Sends the destination address to the server to tell it to connect.
   void SendConnectRequest() {
-    char buf[256];
+    char buf[kNATEncodedIPv6AddressSize];
     size_t length = PackAddressForNAT(buf, ARRAY_SIZE(buf), remote_addr_);
     socket_->Send(buf, length);
   }
@@ -285,6 +278,7 @@ class NATSocket : public AsyncSocket, public sigslot::has_slots<> {
     char code;
     socket_->Recv(&code, sizeof(code));
     if (code == 0) {
+      connected_ = true;
       SignalConnectEvent(this);
     } else {
       Close();
@@ -305,8 +299,10 @@ class NATSocket : public AsyncSocket, public sigslot::has_slots<> {
 
 // NATSocketFactory
 NATSocketFactory::NATSocketFactory(SocketFactory* factory,
-                                   const SocketAddress& nat_addr)
-    : factory_(factory), nat_addr_(nat_addr) {
+                                   const SocketAddress& nat_udp_addr,
+                                   const SocketAddress& nat_tcp_addr)
+    : factory_(factory), nat_udp_addr_(nat_udp_addr),
+      nat_tcp_addr_(nat_tcp_addr) {
 }
 
 Socket* NATSocketFactory::CreateSocket(int type) {
@@ -327,7 +323,11 @@ AsyncSocket* NATSocketFactory::CreateAsyncSocket(int family, int type) {
 
 AsyncSocket* NATSocketFactory::CreateInternalSocket(int family, int type,
     const SocketAddress& local_addr, SocketAddress* nat_addr) {
-  *nat_addr = nat_addr_;
+  if (type == SOCK_STREAM) {
+    *nat_addr = nat_tcp_addr_;
+  } else {
+    *nat_addr = nat_udp_addr_;
+  }
   return factory_->CreateAsyncSocket(family, type);
 }
 
@@ -371,6 +371,19 @@ AsyncSocket* NATSocketServer::CreateAsyncSocket(int family, int type) {
   return new NATSocket(this, family, type);
 }
 
+void NATSocketServer::SetMessageQueue(MessageQueue* queue) {
+  msg_queue_ = queue;
+  server_->SetMessageQueue(queue);
+}
+
+bool NATSocketServer::Wait(int cms, bool process_io) {
+  return server_->Wait(cms, process_io);
+}
+
+void NATSocketServer::WakeUp() {
+  server_->WakeUp();
+}
+
 AsyncSocket* NATSocketServer::CreateInternalSocket(int family, int type,
     const SocketAddress& local_addr, SocketAddress* nat_addr) {
   AsyncSocket* socket = NULL;
@@ -378,7 +391,7 @@ AsyncSocket* NATSocketServer::CreateInternalSocket(int family, int type,
   if (nat) {
     socket = nat->internal_factory()->CreateAsyncSocket(family, type);
     *nat_addr = (type == SOCK_STREAM) ?
-        nat->internal_tcp_address() : nat->internal_address();
+        nat->internal_tcp_address() : nat->internal_udp_address();
   } else {
     socket = server_->CreateAsyncSocket(family, type);
   }
@@ -396,10 +409,11 @@ NATSocketServer::Translator::Translator(
   VirtualSocketServer* internal_server = new VirtualSocketServer(server_);
   internal_server->SetMessageQueue(server_->queue());
   internal_factory_.reset(internal_server);
-  nat_server_.reset(new NATServer(type, internal_server, int_ip,
+  nat_server_.reset(new NATServer(type, internal_server, int_ip, int_ip,
                                   ext_factory, ext_ip));
 }
 
+NATSocketServer::Translator::~Translator() = default;
 
 NATSocketServer::Translator* NATSocketServer::Translator::GetTranslator(
     const SocketAddress& ext_ip) {

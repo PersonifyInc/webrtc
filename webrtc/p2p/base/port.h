@@ -107,13 +107,20 @@ typedef std::set<rtc::SocketAddress> ServerAddresses;
 class Port : public PortInterface, public rtc::MessageHandler,
              public sigslot::has_slots<> {
  public:
-  Port(rtc::Thread* thread, rtc::PacketSocketFactory* factory,
-       rtc::Network* network, const rtc::IPAddress& ip,
-       const std::string& username_fragment, const std::string& password);
-  Port(rtc::Thread* thread, const std::string& type,
+  Port(rtc::Thread* thread,
        rtc::PacketSocketFactory* factory,
-       rtc::Network* network, const rtc::IPAddress& ip,
-       int min_port, int max_port, const std::string& username_fragment,
+       rtc::Network* network,
+       const rtc::IPAddress& ip,
+       const std::string& username_fragment,
+       const std::string& password);
+  Port(rtc::Thread* thread,
+       const std::string& type,
+       rtc::PacketSocketFactory* factory,
+       rtc::Network* network,
+       const rtc::IPAddress& ip,
+       uint16 min_port,
+       uint16 max_port,
+       const std::string& username_fragment,
        const std::string& password);
   virtual ~Port();
 
@@ -255,9 +262,9 @@ class Port : public PortInterface, public rtc::MessageHandler,
 
   // Debugging description of this port
   virtual std::string ToString() const;
-  rtc::IPAddress& ip() { return ip_; }
-  int min_port() { return min_port_; }
-  int max_port() { return max_port_; }
+  const rtc::IPAddress& ip() const { return ip_; }
+  uint16 min_port() { return min_port_; }
+  uint16 max_port() { return max_port_; }
 
   // Timeout shortening function to speed up unit tests.
   void set_timeout_delay(int delay) { timeout_delay_ = delay; }
@@ -290,6 +297,10 @@ class Port : public PortInterface, public rtc::MessageHandler,
 
   // Returns if Hybrid ICE protocol is used.
   bool IsHybridIce() const;
+
+  void set_candidate_filter(uint32 candidate_filter) {
+    candidate_filter_ = candidate_filter;
+  }
 
  protected:
   enum {
@@ -334,6 +345,8 @@ class Port : public PortInterface, public rtc::MessageHandler,
     return rtc::DSCP_NO_CHANGE;
   }
 
+  uint32 candidate_filter() { return candidate_filter_; }
+
  private:
   void Construct();
   // Called when one of our connections deletes itself.
@@ -348,8 +361,8 @@ class Port : public PortInterface, public rtc::MessageHandler,
   bool send_retransmit_count_attribute_;
   rtc::Network* network_;
   rtc::IPAddress ip_;
-  int min_port_;
-  int max_port_;
+  uint16 min_port_;
+  uint16 max_port_;
   std::string content_name_;
   int component_;
   uint32 generation_;
@@ -375,6 +388,12 @@ class Port : public PortInterface, public rtc::MessageHandler,
   std::string user_agent_;
   rtc::ProxyInfo proxy_;
 
+  // Candidate filter is pushed down to Port such that each Port could
+  // make its own decision on how to create candidates. For example,
+  // when IceTransportsType is set to relay, both RelayPort and
+  // TurnPort will hide raddr to avoid local address leakage.
+  uint32 candidate_filter_;
+
   friend class Connection;
 };
 
@@ -383,6 +402,15 @@ class Port : public PortInterface, public rtc::MessageHandler,
 class Connection : public rtc::MessageHandler,
     public sigslot::has_slots<> {
  public:
+  struct SentPing {
+    SentPing(const std::string id, uint32 sent_time)
+        : id(id),
+          sent_time(sent_time) {}
+
+    std::string id;
+    uint32 sent_time;
+  };
+
   // States are from RFC 5245. http://tools.ietf.org/html/rfc5245#section-5.7.4
   enum State {
     STATE_WAITING = 0,  // Check has not been performed, Waiting pair on CL.
@@ -434,6 +462,10 @@ class Connection : public rtc::MessageHandler,
 
   size_t sent_total_bytes();
   size_t sent_bytes_second();
+  // Used to track how many packets are discarded in the application socket due
+  // to errors.
+  size_t sent_discarded_packets();
+  size_t sent_total_packets();
   size_t recv_total_bytes();
   size_t recv_bytes_second();
   sigslot::signal1<Connection*> SignalStateChange;
@@ -487,6 +519,7 @@ class Connection : public rtc::MessageHandler,
   // Called when this connection should try checking writability again.
   uint32 last_ping_sent() const { return last_ping_sent_; }
   void Ping(uint32 now);
+  void ReceivedPingResponse();
 
   // Called whenever a valid ping is received on this connection.  This is
   // public because the connection intercepts the first ping for us.
@@ -494,8 +527,11 @@ class Connection : public rtc::MessageHandler,
   void ReceivedPing();
 
   // Debugging description of this connection
+  std::string ToDebugId() const;
   std::string ToString() const;
   std::string ToSensitiveString() const;
+  // Prints pings_since_last_response_ into a string.
+  void PrintPingsSinceLastResponse(std::string* pings, size_t max);
 
   bool reported() const { return reported_; }
   void set_reported(bool reported) { reported_ = reported;}
@@ -504,6 +540,7 @@ class Connection : public rtc::MessageHandler,
   // transmission. This connection will send STUN ping with USE-CANDIDATE
   // attribute.
   sigslot::signal1<Connection*> SignalUseCandidate;
+
   // Invoked when Connection receives STUN error response with 487 code.
   void HandleRoleConflictFromPeer();
 
@@ -511,7 +548,23 @@ class Connection : public rtc::MessageHandler,
 
   IceMode remote_ice_mode() const { return remote_ice_mode_; }
 
+  // Update the ICE password of the remote candidate if |ice_ufrag| matches
+  // the candidate's ufrag, and the candidate's passwrod has not been set.
+  void MaybeSetRemoteIceCredentials(const std::string& ice_ufrag,
+                                    const std::string& ice_pwd);
+
+  // If |remote_candidate_| is peer reflexive and is equivalent to
+  // |new_candidate| except the type, update |remote_candidate_| to
+  // |new_candidate|.
+  void MaybeUpdatePeerReflexiveCandidate(const Candidate& new_candidate);
+
+  // Returns the last received time of any data, stun request, or stun
+  // response in milliseconds
+  uint32 last_received();
+
  protected:
+  enum { MSG_DELETE = 0, MSG_FIRST_AVAILABLE };
+
   // Constructs a new connection to the given remote port.
   Connection(Port* port, size_t index, const Candidate& candidate);
 
@@ -519,11 +572,12 @@ class Connection : public rtc::MessageHandler,
   void OnSendStunPacket(const void* data, size_t size, StunRequest* req);
 
   // Callbacks from ConnectionRequest
-  void OnConnectionRequestResponse(ConnectionRequest* req,
-                                   StunMessage* response);
+  virtual void OnConnectionRequestResponse(ConnectionRequest* req,
+                                           StunMessage* response);
   void OnConnectionRequestErrorResponse(ConnectionRequest* req,
                                         StunMessage* response);
   void OnConnectionRequestTimeout(ConnectionRequest* req);
+  void OnConnectionRequestSent(ConnectionRequest* req);
 
   // Changes the state and signals if necessary.
   void set_read_state(ReadState value);
@@ -556,10 +610,12 @@ class Connection : public rtc::MessageHandler,
                                // side
   uint32 last_data_received_;
   uint32 last_ping_response_received_;
-  std::vector<uint32> pings_since_last_response_;
+  std::vector<SentPing> pings_since_last_response_;
 
   rtc::RateTracker recv_rate_tracker_;
   rtc::RateTracker send_rate_tracker_;
+  uint32 sent_packets_discarded_;
+  uint32 sent_packets_total_;
 
  private:
   void MaybeAddPrflxCandidate(ConnectionRequest* request,

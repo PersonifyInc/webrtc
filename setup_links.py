@@ -45,15 +45,15 @@ DIRECTORIES = [
   'third_party/icu',
   'third_party/instrumented_libraries',
   'third_party/jsoncpp',
-  'third_party/libc++',
-  'third_party/libc++abi',
   'third_party/libjpeg',
   'third_party/libjpeg_turbo',
   'third_party/libsrtp',
+  'third_party/libudev',
   'third_party/libvpx',
   'third_party/libyuv',
   'third_party/llvm-build',
   'third_party/nss',
+  'third_party/ocmock',
   'third_party/openmax_dl',
   'third_party/opus',
   'third_party/protobuf',
@@ -71,25 +71,36 @@ DIRECTORIES = [
   'tools/python',
   'tools/swarming_client',
   'tools/valgrind',
+  'tools/vim',
   'tools/win',
 ]
 
 from sync_chromium import get_target_os_list
-if 'android' in get_target_os_list():
+target_os = get_target_os_list()
+if 'android' in target_os:
   DIRECTORIES += [
     'base',
+    'third_party/android_platform',
     'third_party/android_testrunner',
     'third_party/android_tools',
+    'third_party/appurify-python',
     'third_party/ashmem',
     'third_party/jsr-305',
+    'third_party/junit',
     'third_party/libevent',
     'third_party/libxml',
+    'third_party/mockito',
     'third_party/modp_b64',
+    'third_party/requests',
+    'third_party/robolectric',
     'tools/android',
+    'tools/grit',
+    'tools/relocation_packer'
   ]
+if 'ios' in target_os:
+  DIRECTORIES.append('third_party/class-dump')
 
 FILES = {
-  '.gn': None,
   'tools/find_depot_tools.py': None,
   'third_party/BUILD.gn': None,
 }
@@ -164,7 +175,7 @@ class Remove(Action):
     else:
       log('Removing %s: %s', filesystem_type, self._path)
 
-  def doit(self, _links_db):
+  def doit(self, _):
     os.remove(self._path)
 
 
@@ -180,7 +191,7 @@ class Rmtree(Action):
     else:
       logging.warn('Removing directory: %s', self._path)
 
-  def doit(self, _links_db):
+  def doit(self, _):
     if sys.platform.startswith('win'):
       # shutil.rmtree() doesn't work on Windows if any of the directories are
       # read-only, which svn repositories are.
@@ -195,7 +206,7 @@ class Makedirs(Action):
     self._priority = 1
     self._path = path
 
-  def doit(self, _links_db):
+  def doit(self, _):
     try:
       os.makedirs(self._path)
     except OSError as e:
@@ -251,7 +262,7 @@ if sys.platform.startswith('win'):
   os.symlink = symlink
 
 
-class WebRTCLinkSetup():
+class WebRTCLinkSetup(object):
   def __init__(self, links_db, force=False, dry_run=False, prompt=False):
     self._force = force
     self._dry_run = dry_run
@@ -345,7 +356,8 @@ class WebRTCLinkSetup():
         if not self._dry_run:
           if os.path.exists(link_path):
             if sys.platform.startswith('win') and os.path.isdir(link_path):
-              subprocess.check_call(['rmdir', '/q', link_path], shell=True)
+              subprocess.check_call(['rmdir', '/q', '/s', link_path],
+                                    shell=True)
             else:
               os.remove(link_path)
           del self._links_db[source]
@@ -474,7 +486,7 @@ def main():
       logging.error('On Windows, you now need to have administrator '
                     'privileges for the shell running %s (or '
                     '`gclient sync|runhooks`).\nPlease start another command '
-                    'prompt as Administrator and try again.' % sys.argv[0])
+                    'prompt as Administrator and try again.', sys.argv[0])
       return 1
 
   if not os.path.exists(CHROMIUM_CHECKOUT):

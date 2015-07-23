@@ -49,7 +49,8 @@ class FakeVideoCapturer : public cricket::VideoCapturer {
       : running_(false),
         initial_unix_timestamp_(time(NULL) * rtc::kNumNanosecsPerSec),
         next_timestamp_(rtc::kNumNanosecsPerMillisec),
-        is_screencast_(false) {
+        is_screencast_(false),
+        rotation_(webrtc::kVideoRotation_0) {
 #ifdef HAVE_WEBRTC_VIDEO
     set_frame_factory(new cricket::WebRtcVideoFrameFactory());
 #endif
@@ -63,6 +64,8 @@ class FakeVideoCapturer : public cricket::VideoCapturer {
         cricket::VideoFormat::FpsToInterval(30), cricket::FOURCC_I420));
     formats.push_back(cricket::VideoFormat(160, 120,
         cricket::VideoFormat::FpsToInterval(30), cricket::FOURCC_I420));
+    formats.push_back(cricket::VideoFormat(1280, 720,
+        cricket::VideoFormat::FpsToInterval(60), cricket::FOURCC_I420));
     ResetSupportedFormats(formats);
   }
   ~FakeVideoCapturer() {
@@ -78,9 +81,17 @@ class FakeVideoCapturer : public cricket::VideoCapturer {
     }
     return CaptureCustomFrame(GetCaptureFormat()->width,
                               GetCaptureFormat()->height,
+                              GetCaptureFormat()->interval,
                               GetCaptureFormat()->fourcc);
   }
   bool CaptureCustomFrame(int width, int height, uint32 fourcc) {
+    // default to 30fps
+    return CaptureCustomFrame(width, height, 33333333, fourcc);
+  }
+  bool CaptureCustomFrame(int width,
+                          int height,
+                          int64_t timestamp_interval,
+                          uint32 fourcc) {
     if (!running_) {
       return false;
     }
@@ -105,7 +116,7 @@ class FakeVideoCapturer : public cricket::VideoCapturer {
     frame.data_size = size;
     frame.elapsed_time = next_timestamp_;
     frame.time_stamp = initial_unix_timestamp_ + next_timestamp_;
-    next_timestamp_ += 33333333;  // 30 fps
+    next_timestamp_ += timestamp_interval;
 
     rtc::scoped_ptr<char[]> data(new char[size]);
     frame.data = data.get();
@@ -115,6 +126,7 @@ class FakeVideoCapturer : public cricket::VideoCapturer {
     memset(reinterpret_cast<uint8*>(frame.data) + (size / 2), 2,
          size - (size / 2));
     memcpy(frame.data, reinterpret_cast<const uint8*>(&fourcc), 4);
+    frame.rotation = rotation_;
     // TODO(zhurunz): SignalFrameCaptured carry returned value to be able to
     // capture results from downstream.
     SignalFrameCaptured(this, &frame);
@@ -148,11 +160,18 @@ class FakeVideoCapturer : public cricket::VideoCapturer {
     return true;
   }
 
+  void SetRotation(webrtc::VideoRotation rotation) {
+    rotation_ = rotation;
+  }
+
+  webrtc::VideoRotation GetRotation() { return rotation_; }
+
  private:
   bool running_;
   int64 initial_unix_timestamp_;
   int64 next_timestamp_;
   bool is_screencast_;
+  webrtc::VideoRotation rotation_;
 };
 
 }  // namespace cricket

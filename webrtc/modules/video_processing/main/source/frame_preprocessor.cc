@@ -13,8 +13,7 @@
 namespace webrtc {
 
 VPMFramePreprocessor::VPMFramePreprocessor()
-    : id_(0),
-      content_metrics_(NULL),
+    : content_metrics_(NULL),
       resampled_frame_(),
       enable_ca_(false),
       frame_cnt_(0) {
@@ -30,11 +29,6 @@ VPMFramePreprocessor::~VPMFramePreprocessor() {
   delete vd_;
 }
 
-int32_t VPMFramePreprocessor::ChangeUniqueId(const int32_t id) {
-  id_ = id;
-  return VPM_OK;
-}
-
 void  VPMFramePreprocessor::Reset() {
   ca_->Release();
   vd_->Reset();
@@ -43,7 +37,6 @@ void  VPMFramePreprocessor::Reset() {
   enable_ca_ = false;
   frame_cnt_ = 0;
 }
-
 
 void  VPMFramePreprocessor::EnableTemporalDecimation(bool enable) {
   vd_->EnableTemporalDecimation(enable);
@@ -68,10 +61,17 @@ int32_t VPMFramePreprocessor::SetTargetResolution(
 
   if (ret_val < 0) return ret_val;
 
-  ret_val = vd_->SetTargetFramerate(frame_rate);
-  if (ret_val < 0) return ret_val;
-
+  vd_->SetTargetFramerate(frame_rate);
   return VPM_OK;
+}
+
+void VPMFramePreprocessor::SetTargetFramerate(int frame_rate) {
+  if (frame_rate == -1) {
+    vd_->EnableTemporalDecimation(false);
+  } else {
+    vd_->EnableTemporalDecimation(true);
+    vd_->SetTargetFramerate(frame_rate);
+  }
 }
 
 void VPMFramePreprocessor::UpdateIncomingframe_rate() {
@@ -92,9 +92,8 @@ uint32_t VPMFramePreprocessor::DecimatedHeight() const {
   return spatial_resampler_->TargetHeight();
 }
 
-
-int32_t VPMFramePreprocessor::PreprocessFrame(const I420VideoFrame& frame,
-    I420VideoFrame** processed_frame) {
+int32_t VPMFramePreprocessor::PreprocessFrame(const VideoFrame& frame,
+                                              VideoFrame** processed_frame) {
   if (frame.IsZeroSize()) {
     return VPM_PARAMETER_ERROR;
   }

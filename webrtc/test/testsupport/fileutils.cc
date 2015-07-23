@@ -23,7 +23,7 @@
 #else
 #include <unistd.h>
 
-#include "webrtc/system_wrappers/interface/scoped_ptr.h"
+#include "webrtc/base/scoped_ptr.h"
 #define GET_CURRENT_DIR getcwd
 #endif
 
@@ -41,6 +41,11 @@
 namespace webrtc {
 namespace test {
 
+#if defined(WEBRTC_IOS)
+// Defined in iosfileutils.mm.  No header file to discourage use elsewhere.
+std::string IOSResourcePath(std::string name, std::string extension);
+#endif
+
 namespace {
 
 #ifdef WIN32
@@ -50,24 +55,23 @@ const char* kPathDelimiter = "/";
 #endif
 
 #ifdef WEBRTC_ANDROID
-const char* kResourcesDirName = "resources";
+const char* kRootDirName = "/sdcard/";
 #else
 // The file we're looking for to identify the project root dir.
 const char* kProjectRootFileName = "DEPS";
+const char* kOutputDirName = "out";
+const char* kFallbackPath = "./";
+#endif
+#if !defined(WEBRTC_IOS)
 const char* kResourcesDirName = "resources";
 #endif
 
-const char* kFallbackPath = "./";
-const char* kOutputDirName = "out";
 char relative_dir_path[FILENAME_MAX];
 bool relative_dir_path_set = false;
 
 }  // namespace
 
 const char* kCannotFindProjectRootDir = "ERROR_CANNOT_FIND_PROJECT_ROOT_DIR";
-
-std::string OutputPathAndroid();
-std::string ProjectRootPathAndroid();
 
 void SetExecutablePath(const std::string& path) {
   std::string working_dir = WorkingDir();
@@ -95,30 +99,18 @@ bool FileExists(std::string& file_name) {
   return stat(file_name.c_str(), &file_info) == 0;
 }
 
-std::string OutputPathImpl() {
-  std::string path = ProjectRootPath();
-  if (path == kCannotFindProjectRootDir) {
-    return kFallbackPath;
-  }
-  path += kOutputDirName;
-  if (!CreateDir(path)) {
-    return kFallbackPath;
-  }
-  return path + kPathDelimiter;
-}
-
 #ifdef WEBRTC_ANDROID
 
 std::string ProjectRootPath() {
-  return ProjectRootPathAndroid();
+  return kRootDirName;
 }
 
 std::string OutputPath() {
-  return OutputPathAndroid();
+  return kRootDirName;
 }
 
 std::string WorkingDir() {
-  return ProjectRootPath();
+  return kRootDirName;
 }
 
 #else // WEBRTC_ANDROID
@@ -148,7 +140,15 @@ std::string ProjectRootPath() {
 }
 
 std::string OutputPath() {
-  return OutputPathImpl();
+  std::string path = ProjectRootPath();
+  if (path == kCannotFindProjectRootDir) {
+    return kFallbackPath;
+  }
+  path += kOutputDirName;
+  if (!CreateDir(path)) {
+    return kFallbackPath;
+  }
+  return path + kPathDelimiter;
 }
 
 std::string WorkingDir() {
@@ -175,7 +175,7 @@ std::string TempFilename(const std::string &dir, const std::string &prefix) {
   return "";
 #else
   int len = dir.size() + prefix.size() + 2 + 6;
-  scoped_ptr<char[]> tempname(new char[len]);
+  rtc::scoped_ptr<char[]> tempname(new char[len]);
 
   snprintf(tempname.get(), len, "%s/%sXXXXXX", dir.c_str(),
            prefix.c_str());
@@ -212,6 +212,9 @@ bool CreateDir(std::string directory_name) {
 }
 
 std::string ResourcePath(std::string name, std::string extension) {
+#if defined(WEBRTC_IOS)
+  return IOSResourcePath(name, extension);
+#else
   std::string platform = "win";
 #ifdef WEBRTC_LINUX
   platform = "linux";
@@ -246,6 +249,7 @@ std::string ResourcePath(std::string name, std::string extension) {
 
   // Fall back on name without architecture or platform.
   return resources_path + name + "." + extension;
+#endif  // defined (WEBRTC_IOS)
 }
 
 size_t GetFileSize(std::string filename) {

@@ -11,7 +11,7 @@
 #ifndef MODULES_AUDIO_CODING_CODECS_SPEEX_MAIN_INTERFACE_SPEEX_INTERFACE_H_
 #define MODULES_AUDIO_CODING_CODECS_SPEEX_MAIN_INTERFACE_SPEEX_INTERFACE_H_
 
-#include "typedefs.h"
+#include <stdint.h>
 
 /*
  * Solution to support multiple instances

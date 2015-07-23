@@ -9,8 +9,11 @@
 {
   'targets': [
     {
-      'target_name': 'G711',
+      'target_name': 'g711',
       'type': 'static_library',
+      'dependencies': [
+        'audio_encoder_interface',
+      ],
       'include_dirs': [
         'include',
         '<(webrtc_root)',
@@ -23,9 +26,11 @@
       },
       'sources': [
         'include/g711_interface.h',
+        'include/audio_encoder_pcm.h',
         'g711_interface.c',
         'g711.c',
         'g711.h',
+        'audio_encoder_pcm.cc',
       ],
     },
   ], # targets
@@ -36,7 +41,7 @@
           'target_name': 'g711_test',
           'type': 'executable',
           'dependencies': [
-            'G711',
+            'g711',
           ],
           'sources': [
             'test/testG711.cc',
