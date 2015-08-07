@@ -12,7 +12,9 @@
 #error "This file requires ARC support."
 #endif
 
-#import <UIKit/UIKit.h>
+#if defined(WEBRTC_IOS)
+    #import <UIKit/UIKit.h>
+#endif
 
 #import "webrtc/modules/video_capture/ios/device_info_ios_objc.h"
 #import "webrtc/modules/video_capture/ios/rtc_video_capture_ios_objc.h"
@@ -144,11 +146,14 @@ using namespace webrtc::videocapturemodule;
     return NO;
   }
 
+#if defined(WEBRTC_IOS)
   if ([_captureSession canSetSessionPreset:AVCaptureSessionPreset1920x1080]) {
     if (capability.width > 1920 || capability.height > 1080) {
       return NO;
     }
-  } else if ([_captureSession
+  } else 
+#endif
+  if ([_captureSession
                  canSetSessionPreset:AVCaptureSessionPreset1280x720]) {
     if (capability.width > 1280 || capability.height > 720) {
       return NO;
@@ -191,10 +196,13 @@ using namespace webrtc::videocapturemodule;
             (AVCaptureVideoDataOutput*)currentOutput {
   NSString* captureQuality =
       [NSString stringWithString:AVCaptureSessionPresetLow];
+#if defined(WEBRTC_IOS)
   if (_capability.width >= 1920 || _capability.height >= 1080) {
     captureQuality =
         [NSString stringWithString:AVCaptureSessionPreset1920x1080];
-  } else if (_capability.width >= 1280 || _capability.height >= 720) {
+  } else
+#endif
+  if (_capability.width >= 1280 || _capability.height >= 720) {
     captureQuality = [NSString stringWithString:AVCaptureSessionPreset1280x720];
   } else if (_capability.width >= 640 || _capability.height >= 480) {
     captureQuality = [NSString stringWithString:AVCaptureSessionPreset640x480];
@@ -243,6 +251,7 @@ using namespace webrtc::videocapturemodule;
 }
 
 - (void)setRelativeVideoOrientation {
+#if defined(WEBRTC_IOS)
   if (!_connection.supportsVideoOrientation) {
     return;
   }
@@ -273,6 +282,7 @@ using namespace webrtc::videocapturemodule;
       }
       break;
   }
+#endif
 }
 
 - (void)onVideoError:(NSNotification*)notification {

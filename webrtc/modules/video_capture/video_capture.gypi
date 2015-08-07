@@ -69,23 +69,24 @@
             }],  # linux
             ['OS=="mac"', {
               'sources': [
-                'mac/qtkit/video_capture_qtkit.h',
-                'mac/qtkit/video_capture_qtkit.mm',
-                'mac/qtkit/video_capture_qtkit_info.h',
-                'mac/qtkit/video_capture_qtkit_info.mm',
-                'mac/qtkit/video_capture_qtkit_info_objc.h',
-                'mac/qtkit/video_capture_qtkit_info_objc.mm',
-                'mac/qtkit/video_capture_qtkit_objc.h',
-                'mac/qtkit/video_capture_qtkit_objc.mm',
-                'mac/qtkit/video_capture_qtkit_utility.h',
-                'mac/video_capture_mac.mm',
+                'ios/device_info_ios.h',
+                'ios/device_info_ios.mm',
+                'ios/device_info_ios_objc.h',
+                'ios/device_info_ios_objc.mm',
+                'ios/rtc_video_capture_ios_objc.h',
+                'ios/rtc_video_capture_ios_objc.mm',
+                'ios/video_capture_ios.h',
+                'ios/video_capture_ios.mm',
               ],
+              'xcode_settings': {
+                'CLANG_ENABLE_OBJC_ARC': 'YES',
+              },
               'link_settings': {
                 'xcode_settings': {
                   'OTHER_LDFLAGS': [
+                    '-framework AVFoundation',
                     '-framework Cocoa',
                     '-framework CoreVideo',
-                    '-framework QTKit',
                   ],
                 },
               },

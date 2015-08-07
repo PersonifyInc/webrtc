@@ -12,7 +12,10 @@
 #define WEBRTC_MODULES_VIDEO_CAPTURE_IOS_VIDEO_CAPTURE_IOS_OBJC_H_
 
 #import <Foundation/Foundation.h>
-#import <UIKit/UIKit.h>
+
+#if defined(WEBRTC_IOS)
+    #import <UIKit/UIKit.h>
+#endif
 
 #include "webrtc/modules/video_capture/ios/video_capture_ios.h"
 
