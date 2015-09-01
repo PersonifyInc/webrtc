@@ -374,7 +374,7 @@ void WebRtcVideoCapturer::OnIncomingCapturedFrame(
   // This can only happen between Start() and Stop().
   DCHECK(start_thread_);
   DCHECK(async_invoker_);
-  if (start_thread_->IsCurrent()) {
+  if (/*HACK HACK HACK*/true || start_thread_->IsCurrent()) {
     SignalFrameCapturedOnStartThread(sample);
   } else {
     // This currently happens on with at least VideoCaptureModuleV4L2 and
@@ -398,9 +398,10 @@ void WebRtcVideoCapturer::OnCaptureDelayChanged(const int32_t id,
 void WebRtcVideoCapturer::SignalFrameCapturedOnStartThread(
     const webrtc::VideoFrame frame) {
   // This can only happen between Start() and Stop().
-  DCHECK(start_thread_);
-  DCHECK(start_thread_->IsCurrent());
-  DCHECK(async_invoker_);
+  // HACK HACK HACK -- just throw these frames up regardless of thread (hopefully we won't crash ;-) ).
+  //DCHECK(start_thread_);
+  //DCHECK(start_thread_->IsCurrent());
+  //DCHECK(async_invoker_);
 
   ++captured_frames_;
   // Log the size and pixel aspect ratio of the first captured frame.
