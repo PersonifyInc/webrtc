@@ -289,54 +289,8 @@
             },
           ],
         },
-        {
-          'target_name': 'libjingle_peerconnection_java_unittest',
-          'type': 'none',
-          'actions': [
-            {
-              'action_name': 'copy libjingle_peerconnection_java_unittest',
-              'inputs': [
-                'app/webrtc/javatests/libjingle_peerconnection_java_unittest.sh',
-                '<(PRODUCT_DIR)/libjingle_peerconnection_test_jar',
-                '<(junit_jar)',
-              ],
-              'outputs': [
-                '<(PRODUCT_DIR)/libjingle_peerconnection_java_unittest',
-              ],
-              'action': [
-                'bash', '-c',
-                'rm -f <(PRODUCT_DIR)/libjingle_peerconnection_java_unittest && '
-                'sed -e "s@GYP_JAVA_HOME@<(java_home)@" '
-                '< app/webrtc/javatests/libjingle_peerconnection_java_unittest.sh '
-                '> <(PRODUCT_DIR)/libjingle_peerconnection_java_unittest && '
-                'cp <(junit_jar) <(PRODUCT_DIR) && '
-                'chmod u+x <(PRODUCT_DIR)/libjingle_peerconnection_java_unittest'
-              ],
-            },
-          ],
-        },
       ],
     }],
-    ['OS=="android"', {
-      'targets': [
-        {
-          'target_name': 'libjingle_peerconnection_android_unittest',
-          'type': 'none',
-          'dependencies': [
-            'libjingle.gyp:libjingle_peerconnection_java',
-          ],
-          'variables': {
-            'apk_name': 'libjingle_peerconnection_android_unittest',
-            'java_in_dir': 'app/webrtc/androidtests',
-            'resource_dir': 'app/webrtc/androidtests/res',
-            'additional_src_dirs': ['app/webrtc/java/testcommon'],
-            'native_lib_target': 'libjingle_peerconnection_so',
-            'is_test_apk': 1,
-          },
-          'includes': [ '../build/java_apk.gypi' ],
-        },
-      ],  # targets
-    }],  # OS=="android"
     ['OS=="ios" or (OS=="mac" and target_arch!="ia32" and mac_sdk>="10.7")', {
       # The >=10.7 above is required to make ARC link cleanly (e.g. as
       # opposed to _compile_ cleanly, which the library under test

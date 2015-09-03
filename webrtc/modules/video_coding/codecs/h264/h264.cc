@@ -11,6 +11,10 @@
 
 #include "webrtc/modules/video_coding/codecs/h264/include/h264.h"
 
+#if defined(WEBRTC_ANDROID)
+#include "webrtc/modules/video_coding/codecs/h264/h264_media_codec_encoder.h"
+#endif
+
 #if defined(WEBRTC_IOS)
 #include "webrtc/modules/video_coding/codecs/h264/h264_video_toolbox_decoder.h"
 #include "webrtc/modules/video_coding/codecs/h264/h264_video_toolbox_encoder.h"
@@ -30,6 +34,8 @@ extern bool IsH264CodecSupportedObjC();
 bool IsH264CodecSupported() {
 #if defined(WEBRTC_IOS)
   return IsH264CodecSupportedObjC();
+#elif defined(WEBRTC_ANDROID)
+  return true;
 #else
   return false;
 #endif
@@ -39,6 +45,8 @@ H264Encoder* H264Encoder::Create() {
   DCHECK(H264Encoder::IsSupported());
 #if defined(WEBRTC_IOS) && defined(WEBRTC_VIDEO_TOOLBOX_SUPPORTED)
   return new H264VideoToolboxEncoder();
+#elif defined(WEBRTC_ANDROID)
+  return new H264MediaCodecEncoder();
 #else
   RTC_NOTREACHED();
   return nullptr;
