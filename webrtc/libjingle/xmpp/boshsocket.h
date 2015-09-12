@@ -109,6 +109,8 @@ namespace buzz {
     sigslot::signal1<int> SignalCloseEvent;
     buzz::BoshXmppStanzaGenerator* GetGenerator() { return generator_;}
 
+    bool restart_sent_;
+
   private:
     bool BothPending();
     bool BothConnected();
