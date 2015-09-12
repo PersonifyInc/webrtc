@@ -155,7 +155,15 @@ namespace buzz {
 #ifdef FEATURE_ENABLE_SSL
     if (tls_ != buzz::TLS_DISABLED) {
       first_socket = rtc::SSLAdapter::Create(first_socket);
+// For non-production builds, relax certificate requirements. This will allow the use
+// of a debugging proxy, for example.
+#ifndef _PRODUCT
+      ((rtc::SSLAdapter*)first_socket)->set_ignore_bad_cert(true);
+#endif
       second_socket = rtc::SSLAdapter::Create(second_socket);
+#ifndef _PRODUCT
+      ((rtc::SSLAdapter*)second_socket)->set_ignore_bad_cert(true);
+#endif
     }
 #endif  // FEATURE_ENABLE_SSL
     primary_socket_->socket_ = first_socket;
