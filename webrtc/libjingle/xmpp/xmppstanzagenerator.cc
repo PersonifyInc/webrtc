@@ -238,25 +238,35 @@ namespace buzz{
   {
     std::string content = str.substr(0, len);
     std::size_t header_length = content.find("\r\n\r\n");
-    std::size_t start_body = content.find_first_of("<");
-    if (header_length != std::string::npos)
-    {
+    std::size_t start_body = content.find("<body");
+    if (header_length != std::string::npos) {
       // Collect the HTTP header and the status code return.
       std::string header = content.substr(0, header_length + 2);
       std::string status_code = header.substr(9, 3);
-      if (status_code != "200")
-      {
+      if (status_code != "200") {
         return false;
       }
     }
-    if (start_body != std::string::npos)
-    {
+    else if (start_body == std::string::npos) {
+      // Handle second part of a message
+      std::size_t stop = content.rfind("</body>");
+
+      // Remove the <body...> and </body> tags
+      if (stop != std::string::npos) { // Partial body (start of a message)
+        content = content.substr(0, stop);
+        return true;
+      }
+      else {
+        return false;
+      }
+    }
+
+    if (start_body != std::string::npos) {
       content = content.substr(start_body, len - start_body);
       std::size_t end_body = content.find_first_of(">");
       std::string body = content.substr(0, end_body);
       // Collect the sid of message
-      if (!CollectData(body))
-      {
+      if (!CollectData(body)) {
         return false;
       }
 
@@ -280,13 +290,16 @@ namespace buzz{
         // Process the return string of other messages
         else {
           std::size_t start = content.find_first_of(">");
-          std::size_t stop = content.find_last_of("<");
-          //Remove the <body...> and </body> tags
-          if (start == std::string::npos || stop == std::string::npos) {
-            return false;
+          std::size_t stop = content.rfind("</body>");
+          // Remove the <body...> and </body> tags
+          if (start != std::string::npos && stop != std::string::npos) {
+            content = content.substr(start + 1, stop - start - 1);
+          }
+          else if (start != std::string::npos) { // Partial body (start of a message)
+            content = content.substr(start + 1, len - start - 1);
           }
           else {
-            content = content.substr(start + 1, stop - start - 1);
+            return false;
           }
         }
         str = content;
