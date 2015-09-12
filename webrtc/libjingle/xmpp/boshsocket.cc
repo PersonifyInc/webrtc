@@ -49,7 +49,7 @@ namespace buzz {
         auto current_socket = socket->GetCurrentSocket();
         auto other_socket = socket->GetOtherSocket();
         // If there was things is sent before, and we have had inactivity time.
-        if (inactivity_ != 0) {
+        if (inactivity_ != 0 && socket->restart_sent_) {
           if (current_socket != NULL) {
             if (current_socket->pending_ == false)
             {
@@ -91,7 +91,7 @@ namespace buzz {
         auto current_socket = socket->GetCurrentSocket();
         auto other_socket = socket->GetOtherSocket();
         // If there was things is sent before, and we have had inactivity time.
-        if (inactivity_ != 0) {
+        if (inactivity_ != 0 && socket->restart_sent_) {
           if (current_socket != NULL) {
             if (current_socket->pending_ == false) {
               // Send empty request
@@ -125,7 +125,8 @@ namespace buzz {
                                                  tls_(tls),
                                                  ssl_(false),
                                                  use_proxy_(false),
-                                                 start_sent_(false)
+                                                 start_sent_(false),
+                                                 restart_sent_(false)
   {
     running_ = true;
     inactivity_ = 0;
@@ -297,6 +298,7 @@ namespace buzz {
       }
       else if (temp_data == "restart") {
         generated_data = generator_->GenerateLoginRestart();
+        restart_sent_ = true;
       }
       else if (temp_data == "empty") {
         generated_data = generator_->GenerateEmptyRequest();
@@ -458,6 +460,7 @@ namespace buzz {
         }
         else if (temp_data == "restart") {
           generated_data = generator_->GenerateLoginRestart();
+          restart_sent_ = true;
         }
         else if (temp_data == "empty") {
           generated_data = generator_->GenerateEmptyRequest();
