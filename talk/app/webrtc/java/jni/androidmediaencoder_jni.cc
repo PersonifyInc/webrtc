@@ -150,6 +150,7 @@ class MediaCodecVideoEncoder : public webrtc::VideoEncoder,
   // returns.
   scoped_ptr<Thread> codec_thread_;  // Thread on which to operate MediaCodec.
   ScopedGlobalRef<jclass> j_media_codec_video_encoder_class_;
+  ScopedGlobalRef<jclass> j_video_codec_type_class_;
   ScopedGlobalRef<jobject> j_media_codec_video_encoder_;
   jmethodID j_init_encode_method_;
   jmethodID j_dequeue_input_buffer_method_;
@@ -430,8 +431,9 @@ int32_t MediaCodecVideoEncoder::InitEncodeOnCodecThread(
   drop_next_input_frame_ = false;
   picture_id_ = static_cast<uint16_t>(rand()) & 0x7FFF;
   // We enforce no extra stride/padding in the format creation step.
+  const std::string video_codec_type_string = "org/webrtc/MediaCodecVideoEncoder$VideoCodecType";
   jobject j_video_codec_enum = JavaEnumFromIndex(
-      jni, "MediaCodecVideoEncoder$VideoCodecType", codecType_);
+      jni, *j_video_codec_type_class_, video_codec_type_string, codecType_);
   jobjectArray input_buffers = reinterpret_cast<jobjectArray>(
       jni->CallObjectMethod(*j_media_codec_video_encoder_,
                             j_init_encode_method_,
