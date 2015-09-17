@@ -243,6 +243,7 @@ namespace buzz {
             start_sent_ = false;
           }
           if (is_empty_response) {
+            temp_socket->pending_ = false;
             input_msg.len_ = 0;
           }
           else {
@@ -259,6 +260,7 @@ namespace buzz {
           std::memcpy(input_msg.data_, error.c_str(), error.length());
           input_msg.recv_result_ = true;
         }
+
         if (input_msg.len_ != 0) {
           temp_socket->pending_ = false;
           input_queue_.push(input_msg);
@@ -411,6 +413,7 @@ namespace buzz {
               start_sent_ = false;
             }
             if (is_empty_response) {
+              temp_socket->pending_ = false;
               input_msg.len_ = 0;
             }
             else {
@@ -427,8 +430,9 @@ namespace buzz {
             std::memcpy(input_msg.data_, error.c_str(), error.length());
             input_msg.recv_result_ = true;
           }
-          temp_socket->pending_ = false;
+
           if (input_msg.len_ != 0) {
+            temp_socket->pending_ = false;
             input_queue_.push(input_msg);
             SignalRead();
           }
@@ -564,7 +568,7 @@ namespace buzz {
   }
 
   void BoshSocket::TrySending() {
-    if (BothConnected()) {
+    if (BothConnected() && !BothPending()) {
       auto temp_socket = GetSocket();
 #ifndef USE_SSLSTREAM
       OnWriteEvent(temp_socket->socket_);
