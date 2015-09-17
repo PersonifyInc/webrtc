@@ -219,11 +219,14 @@ MediaCodecVideoEncoder::MediaCodecVideoEncoder(
     quality_scaler_(new webrtc::QualityScaler()),
     j_media_codec_video_encoder_class_(
         jni,
-        FindClass(jni, "org/webrtc/MediaCodecVideoEncoder")),
+        jni->FindClass("org/webrtc/MediaCodecVideoEncoder")),
+    j_video_codec_type_class_(
+        jni,
+        jni->FindClass("org/webrtc/MediaCodecVideoEncoder$VideoCodecType")),
     j_media_codec_video_encoder_(
         jni,
         jni->NewObject(*j_media_codec_video_encoder_class_,
-                       GetMethodID(jni,
+                       jni->GetMethodID(
                                    *j_media_codec_video_encoder_class_,
                                    "<init>",
                                    "()V"))) {
@@ -239,39 +242,37 @@ MediaCodecVideoEncoder::MediaCodecVideoEncoder(
   CHECK(codec_thread_->Start()) << "Failed to start MediaCodecVideoEncoder";
 
   jclass j_output_buffer_info_class =
-      FindClass(jni, "org/webrtc/MediaCodecVideoEncoder$OutputBufferInfo");
-  j_init_encode_method_ = GetMethodID(
-      jni,
+      jni->FindClass("org/webrtc/MediaCodecVideoEncoder$OutputBufferInfo");
+  j_init_encode_method_ = jni->GetMethodID(
       *j_media_codec_video_encoder_class_,
       "initEncode",
       "(Lorg/webrtc/MediaCodecVideoEncoder$VideoCodecType;IIII)"
       "[Ljava/nio/ByteBuffer;");
-  j_dequeue_input_buffer_method_ = GetMethodID(
-      jni, *j_media_codec_video_encoder_class_, "dequeueInputBuffer", "()I");
-  j_encode_method_ = GetMethodID(
-      jni, *j_media_codec_video_encoder_class_, "encode", "(ZIIJ)Z");
+  j_dequeue_input_buffer_method_ = jni->GetMethodID(
+      *j_media_codec_video_encoder_class_, "dequeueInputBuffer", "()I");
+  j_encode_method_ = jni->GetMethodID(
+      *j_media_codec_video_encoder_class_, "encode", "(ZIIJ)Z");
   j_release_method_ =
-      GetMethodID(jni, *j_media_codec_video_encoder_class_, "release", "()V");
-  j_set_rates_method_ = GetMethodID(
-      jni, *j_media_codec_video_encoder_class_, "setRates", "(II)Z");
-  j_dequeue_output_buffer_method_ = GetMethodID(
-      jni,
+      jni->GetMethodID(*j_media_codec_video_encoder_class_, "release", "()V");
+  j_set_rates_method_ = jni->GetMethodID(
+      *j_media_codec_video_encoder_class_, "setRates", "(II)Z");
+  j_dequeue_output_buffer_method_ = jni->GetMethodID(
       *j_media_codec_video_encoder_class_,
       "dequeueOutputBuffer",
       "()Lorg/webrtc/MediaCodecVideoEncoder$OutputBufferInfo;");
-  j_release_output_buffer_method_ = GetMethodID(
-      jni, *j_media_codec_video_encoder_class_, "releaseOutputBuffer", "(I)Z");
+  j_release_output_buffer_method_ = jni->GetMethodID(
+      *j_media_codec_video_encoder_class_, "releaseOutputBuffer", "(I)Z");
 
   j_color_format_field_ =
-      GetFieldID(jni, *j_media_codec_video_encoder_class_, "colorFormat", "I");
+      jni->GetFieldID(*j_media_codec_video_encoder_class_, "colorFormat", "I");
   j_info_index_field_ =
-      GetFieldID(jni, j_output_buffer_info_class, "index", "I");
-  j_info_buffer_field_ = GetFieldID(
-      jni, j_output_buffer_info_class, "buffer", "Ljava/nio/ByteBuffer;");
+      jni->GetFieldID(j_output_buffer_info_class, "index", "I");
+  j_info_buffer_field_ = jni->GetFieldID(
+      j_output_buffer_info_class, "buffer", "Ljava/nio/ByteBuffer;");
   j_info_is_key_frame_field_ =
-      GetFieldID(jni, j_output_buffer_info_class, "isKeyFrame", "Z");
-  j_info_presentation_timestamp_us_field_ = GetFieldID(
-      jni, j_output_buffer_info_class, "presentationTimestampUs", "J");
+      jni->GetFieldID(j_output_buffer_info_class, "isKeyFrame", "Z");
+  j_info_presentation_timestamp_us_field_ = jni->GetFieldID(
+      j_output_buffer_info_class, "presentationTimestampUs", "J");
   CHECK_EXCEPTION(jni) << "MediaCodecVideoEncoder ctor failed";
   AllowBlockingCalls();
 }
@@ -445,7 +446,7 @@ int32_t MediaCodecVideoEncoder::InitEncodeOnCodecThread(
   }
 
   inited_ = true;
-  switch (GetIntField(jni, *j_media_codec_video_encoder_,
+  switch (jni->GetIntField(*j_media_codec_video_encoder_,
       j_color_format_field_)) {
     case COLOR_FormatYUV420Planar:
       encoder_fourcc_ = libyuv::FOURCC_YU12;
@@ -651,26 +652,26 @@ int32_t MediaCodecVideoEncoder::SetRatesOnCodecThread(uint32_t new_bit_rate,
 int MediaCodecVideoEncoder::GetOutputBufferInfoIndex(
     JNIEnv* jni,
     jobject j_output_buffer_info) {
-  return GetIntField(jni, j_output_buffer_info, j_info_index_field_);
+  return jni->GetIntField(j_output_buffer_info, j_info_index_field_);
 }
 
 jobject MediaCodecVideoEncoder::GetOutputBufferInfoBuffer(
     JNIEnv* jni,
     jobject j_output_buffer_info) {
-  return GetObjectField(jni, j_output_buffer_info, j_info_buffer_field_);
+  return jni->GetObjectField(j_output_buffer_info, j_info_buffer_field_);
 }
 
 bool MediaCodecVideoEncoder::GetOutputBufferInfoIsKeyFrame(
     JNIEnv* jni,
     jobject j_output_buffer_info) {
-  return GetBooleanField(jni, j_output_buffer_info, j_info_is_key_frame_field_);
+  return jni->GetBooleanField(j_output_buffer_info, j_info_is_key_frame_field_);
 }
 
 jlong MediaCodecVideoEncoder::GetOutputBufferInfoPresentationTimestampUs(
     JNIEnv* jni,
     jobject j_output_buffer_info) {
-  return GetLongField(
-      jni, j_output_buffer_info, j_info_presentation_timestamp_us_field_);
+  return jni->GetLongField(
+      j_output_buffer_info, j_info_presentation_timestamp_us_field_);
 }
 
 bool MediaCodecVideoEncoder::DeliverPendingOutputs(JNIEnv* jni) {
@@ -881,12 +882,12 @@ int MediaCodecVideoEncoder::GetTargetFramerate() {
 MediaCodecVideoEncoderFactory::MediaCodecVideoEncoderFactory() {
   JNIEnv* jni = AttachCurrentThreadIfNeeded();
   ScopedLocalRefFrame local_ref_frame(jni);
-  jclass j_encoder_class = FindClass(jni, "org/webrtc/MediaCodecVideoEncoder");
+  jclass j_encoder_class = jni->FindClass("org/webrtc/MediaCodecVideoEncoder");
   supported_codecs_.clear();
 
   bool is_vp8_hw_supported = jni->CallStaticBooleanMethod(
       j_encoder_class,
-      GetStaticMethodID(jni, j_encoder_class, "isVp8HwSupported", "()Z"));
+      jni->GetStaticMethodID(j_encoder_class, "isVp8HwSupported", "()Z"));
   CHECK_EXCEPTION(jni);
   if (is_vp8_hw_supported) {
     ALOGD("VP8 HW Encoder supported.");
@@ -896,7 +897,7 @@ MediaCodecVideoEncoderFactory::MediaCodecVideoEncoderFactory() {
 
   bool is_h264_hw_supported = jni->CallStaticBooleanMethod(
       j_encoder_class,
-      GetStaticMethodID(jni, j_encoder_class, "isH264HwSupported", "()Z"));
+      jni->GetStaticMethodID(j_encoder_class, "isH264HwSupported", "()Z"));
   CHECK_EXCEPTION(jni);
   if (is_h264_hw_supported) {
     ALOGD("H.264 HW Encoder supported.");

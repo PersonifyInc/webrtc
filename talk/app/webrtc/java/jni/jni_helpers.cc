@@ -251,8 +251,8 @@ std::string JavaToStdString(JNIEnv* jni, const jstring& j_string) {
 // Return the (singleton) Java Enum object corresponding to |index|;
 jobject JavaEnumFromIndex(JNIEnv* jni, jclass state_class,
                           const std::string& state_class_name, int index) {
-  jmethodID state_values_id = GetStaticMethodID(
-      jni, state_class, "values", ("()[L" + state_class_name  + ";").c_str());
+  jmethodID state_values_id = jni->GetStaticMethodID(
+      state_class, "values", ("()[L" + state_class_name  + ";").c_str());
   jobjectArray state_values = static_cast<jobjectArray>(
       jni->CallStaticObjectMethod(state_class, state_values_id));
   CHECK_EXCEPTION(jni) << "error during CallStaticObjectMethod";
