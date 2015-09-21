@@ -51,6 +51,7 @@
     'webrtc_vp8_dir%': '<(webrtc_vp8_dir)',
     'webrtc_vp9_dir%': '<(webrtc_vp9_dir)',
     'include_opus%': '<(include_opus)',
+    'PSY_PRODUCT_DEFINE%': 0,
     'rtc_relative_path%': 1,
     'external_libraries%': '0',
     'json_root%': '<(DEPTH)/third_party/jsoncpp/source/include/',
