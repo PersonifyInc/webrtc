@@ -40,36 +40,37 @@ namespace buzz {
     BoshSocket *socket = (BoshSocket *)param;
 
     while (running_) {
-      if (!socket->OutputEmpty())
-      {
+      if (!socket->OutputEmpty()) {
         socket->TrySending();
       }
       else {
         time(&current_);
         auto current_socket = socket->GetCurrentSocket();
         auto other_socket = socket->GetOtherSocket();
-        // If there was things is sent before, and we have had inactivity time.
-        if (inactivity_ != 0) {
-          if (current_socket != NULL) {
-            if (current_socket->pending_ == false)
-            {
-              // Send empty request
-              std::string temp = "empty";
-              socket->Write(temp.c_str(), temp.length());
-              socket->TrySending(current_socket);
-            }
-          }
-          if (other_socket != NULL) {
-            if (difftime(current_, other_socket->receive_time_) >= inactivity_ / 2) {
-              if (other_socket->pending_ == false) {
+
+        if (current_socket && current_socket->pending_ == false && other_socket && other_socket->pending_ == false) {
+          // If there was things is sent before, and we have had inactivity time.
+          if (inactivity_ != 0 && socket->restart_sent_) {
+            if (current_socket != NULL) {
+              if (current_socket->pending_ == false) {
                 // Send empty request
                 std::string temp = "empty";
                 socket->Write(temp.c_str(), temp.length());
-                socket->TrySending(other_socket);
+                socket->TrySending(current_socket);
               }
             }
+            if (other_socket != NULL) {
+              if (difftime(current_, other_socket->receive_time_) >= inactivity_ / 2) {
+                if (other_socket->pending_ == false) {
+                  // Send empty request
+                  std::string temp = "empty";
+                  socket->Write(temp.c_str(), temp.length());
+                  socket->TrySending(other_socket);
+                }
+              }
+            }
+            Sleep(50);
           }
-          Sleep(50);
         }
       }
     }
@@ -82,8 +83,7 @@ namespace buzz {
     ts.tv_sec = 0;
     ts.tv_nsec = 50 * kMilliToNano;
     while (running_) {
-      if (!socket->OutputEmpty())
-      {
+      if (!socket->OutputEmpty()) {
         socket->TrySending();
       }
       else {
@@ -91,7 +91,7 @@ namespace buzz {
         auto current_socket = socket->GetCurrentSocket();
         auto other_socket = socket->GetOtherSocket();
         // If there was things is sent before, and we have had inactivity time.
-        if (inactivity_ != 0) {
+        if (inactivity_ != 0 && socket->restart_sent_) {
           if (current_socket != NULL) {
             if (current_socket->pending_ == false) {
               // Send empty request
@@ -125,7 +125,8 @@ namespace buzz {
                                                  tls_(tls),
                                                  ssl_(false),
                                                  use_proxy_(false),
-                                                 start_sent_(false)
+                                                 start_sent_(false),
+                                                 restart_sent_(false)
   {
     running_ = true;
     inactivity_ = 0;
@@ -155,7 +156,15 @@ namespace buzz {
 #ifdef FEATURE_ENABLE_SSL
     if (tls_ != buzz::TLS_DISABLED) {
       first_socket = rtc::SSLAdapter::Create(first_socket);
+// For non-production builds, relax certificate requirements. This will allow the use
+// of a debugging proxy, for example.
+#ifndef _PRODUCT
+      ((rtc::SSLAdapter*)first_socket)->set_ignore_bad_cert(true);
+#endif
       second_socket = rtc::SSLAdapter::Create(second_socket);
+#ifndef _PRODUCT
+      ((rtc::SSLAdapter*)second_socket)->set_ignore_bad_cert(true);
+#endif
     }
 #endif  // FEATURE_ENABLE_SSL
     primary_socket_->socket_ = first_socket;
@@ -241,6 +250,7 @@ namespace buzz {
             start_sent_ = false;
           }
           if (is_empty_response) {
+            temp_socket->pending_ = false;
             input_msg.len_ = 0;
           }
           else {
@@ -257,8 +267,9 @@ namespace buzz {
           std::memcpy(input_msg.data_, error.c_str(), error.length());
           input_msg.recv_result_ = true;
         }
-        temp_socket->pending_ = false;
+
         if (input_msg.len_ != 0) {
+          temp_socket->pending_ = false;
           input_queue_.push(input_msg);
           SignalRead();
         }
@@ -289,6 +300,7 @@ namespace buzz {
       }
       else if (temp_data == "restart") {
         generated_data = generator_->GenerateLoginRestart();
+        restart_sent_ = true;
       }
       else if (temp_data == "empty") {
         generated_data = generator_->GenerateEmptyRequest();
@@ -408,6 +420,7 @@ namespace buzz {
               start_sent_ = false;
             }
             if (is_empty_response) {
+              temp_socket->pending_ = false;
               input_msg.len_ = 0;
             }
             else {
@@ -424,8 +437,9 @@ namespace buzz {
             std::memcpy(input_msg.data_, error.c_str(), error.length());
             input_msg.recv_result_ = true;
           }
-          temp_socket->pending_ = false;
+
           if (input_msg.len_ != 0) {
+            temp_socket->pending_ = false;
             input_queue_.push(input_msg);
             SignalRead();
           }
@@ -450,6 +464,7 @@ namespace buzz {
         }
         else if (temp_data == "restart") {
           generated_data = generator_->GenerateLoginRestart();
+          restart_sent_ = true;
         }
         else if (temp_data == "empty") {
           generated_data = generator_->GenerateEmptyRequest();
@@ -560,15 +575,13 @@ namespace buzz {
   }
 
   void BoshSocket::TrySending() {
-    if (BothConnected()) {
-      if (!BothPending()) {
-        auto temp_socket = GetSocket();
+    if (BothConnected() && !BothPending()) {
+      auto temp_socket = GetSocket();
 #ifndef USE_SSLSTREAM
-        OnWriteEvent(temp_socket->socket_);
+      OnWriteEvent(temp_socket->socket_);
 #else // USE_SSLSTREAM
-        OnEvent(temp_socket->stream_, rtc::SE_WRITE, 0);
+      OnEvent(temp_socket->stream_, rtc::SE_WRITE, 0);
 #endif // USE_SSLSTREAM
-      }
     }
   }
 

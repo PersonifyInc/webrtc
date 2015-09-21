@@ -171,6 +171,10 @@
   },
   'target_defaults': {
     'conditions': [
+      # Conditionally set _PRODUCT compile flag (to turn on/off product-specific functionality)
+      ['PSY_PRODUCT_DEFINE==1', {
+        'defines': ['_PRODUCT',],
+      }],
       ['restrict_webrtc_logging==1', {
         'defines': ['WEBRTC_RESTRICT_LOGGING',],
       }],
