@@ -249,48 +249,6 @@
     },  # target libjingle_peerconnection_unittest
   ],
   'conditions': [
-    ['OS=="linux"', {
-      'variables': {
-        'junit_jar': '<(DEPTH)/third_party/junit-jar/junit-4.11.jar',
-      },
-      'targets': [
-        {
-          'target_name': 'libjingle_peerconnection_test_jar',
-          'type': 'none',
-          'dependencies': [
-            'libjingle.gyp:libjingle_peerconnection_jar',
-          ],
-          'actions': [
-            {
-              'variables': {
-                'java_src_dir': 'app/webrtc/javatests/src',
-                'java_files': [
-                  'app/webrtc/java/testcommon/src/org/webrtc/PeerConnectionTest.java',
-                  'app/webrtc/javatests/src/org/webrtc/PeerConnectionTestJava.java',
-                ],
-              },
-              'action_name': 'create_jar',
-              'inputs': [
-                'build/build_jar.sh',
-                '<@(java_files)',
-                '<(PRODUCT_DIR)/libjingle_peerconnection.jar',
-                '<(PRODUCT_DIR)/lib/libjingle_peerconnection_so.so',
-                '<(junit_jar)',
-              ],
-              'outputs': [
-                '<(PRODUCT_DIR)/libjingle_peerconnection_test.jar',
-              ],
-              'action': [
-                'build/build_jar.sh', '<(java_home)', '<@(_outputs)',
-                '<(INTERMEDIATE_DIR)',
-                '<(java_src_dir):<(PRODUCT_DIR)/libjingle_peerconnection.jar:<(junit_jar)',
-                '<@(java_files)'
-              ],
-            },
-          ],
-        },
-      ],
-    }],
     ['OS=="ios" or (OS=="mac" and target_arch!="ia32" and mac_sdk>="10.7")', {
       # The >=10.7 above is required to make ARC link cleanly (e.g. as
       # opposed to _compile_ cleanly, which the library under test
