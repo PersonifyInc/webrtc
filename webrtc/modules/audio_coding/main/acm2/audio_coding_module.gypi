@@ -18,6 +18,7 @@
       'pcm16b',
       'red',
       'acmspeex',
+      'webrtc_aac',
       '<(webrtc_root)/common.gyp:webrtc_common',
       '<(webrtc_root)/common_audio/common_audio.gyp:common_audio',
       '<(webrtc_root)/system_wrappers/system_wrappers.gyp:system_wrappers',
@@ -27,9 +28,6 @@
       ['include_opus==1', {
         'audio_coding_dependencies': ['webrtc_opus',],
         'audio_coding_defines': ['WEBRTC_CODEC_OPUS',],
-      }],
-      ['OS=="win"', {
-        'audio_coding_dependencies': ['webrtc_aac',],
       }],
     ],
   },

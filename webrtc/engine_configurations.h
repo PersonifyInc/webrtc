@@ -47,9 +47,7 @@
 
 #define WEBRTC_CODEC_SPEEX
 
-#if defined(_WIN32)
 #define WEBRTC_CODEC_AAC
-#endif
 
 // ----------------------------------------------------------------------------
 //  [Video] Codec settings

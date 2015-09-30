@@ -8,18 +8,21 @@
 *  be found in the AUTHORS file in the root of the source tree.
 */
 
-#include "AacWindowsDecoder.h"
-#include "AacWindowsEncoder.h"
+//#include "AacWindowsDecoder.h"
+//#include "AacVisualOnEncoder.h"
+#include "AacVisualOnEncoder.h"
 #include "aac_interface.h"
+
+#include <stdlib.h>
 
 struct WebRtcAacEncInst
 {
-    AacWindowsEncoder* encoder;
+    AacVisualOnEncoder* encoder;
 };
 
 struct WebRtcAacDecInst
 {
-    AacWindowsDecoder* decoder;
+    //AacWindowsDecoder* decoder;
 };
 
 int16_t WebRtcAac_EncoderCreate(AacEncInst** enc)
@@ -30,7 +33,7 @@ int16_t WebRtcAac_EncoderCreate(AacEncInst** enc)
         return -1;
     }
 
-    (*enc)->encoder = new AacWindowsEncoder();
+    (*enc)->encoder = new AacVisualOnEncoder();
     if ((*enc)->encoder == nullptr)
     {
         return -1;
@@ -85,7 +88,7 @@ int16_t WebRtcAac_Encode(AacEncInst* enc,
 
 int16_t WebRtcAac_DecoderCreate(AacDecInst** dec)
 {
-    *dec = (AacDecInst*)malloc(sizeof(AacDecInst));
+    /**dec = (AacDecInst*)malloc(sizeof(AacDecInst));
     if (*dec == nullptr)
     {
         return -1;
@@ -95,14 +98,14 @@ int16_t WebRtcAac_DecoderCreate(AacDecInst** dec)
     if ((*dec)->decoder == nullptr)
     {
         return -1;
-    }
+    }*/
 
     return 0;
 }
 
 int16_t WebRtcAac_DecoderFree(AacDecInst* dec)
 {
-    if (dec != nullptr)
+    /*if (dec != nullptr)
     {
         dec->decoder->CleanUp();
 
@@ -111,20 +114,20 @@ int16_t WebRtcAac_DecoderFree(AacDecInst* dec)
 
         free(dec);
         return 0;
-    }
+    }*/
 
     return -1;
 }
 
 int16_t WebRtcAac_DecoderInit(AacDecInst* dec)
 {
-    if (dec != nullptr)
+    /*if (dec != nullptr)
     {
         if (dec->decoder->Init())
         {
             return 0;
         }
-    }
+    }*/
 
     return -1;
 }
@@ -134,10 +137,11 @@ int16_t WebRtcAac_Decode(AacDecInst* dec,
                          int16_t numBytes,
                          int16_t* decoded)
 {
-    if (dec == nullptr)
+    /*if (dec == nullptr)
     {
         return 0;
     }
 
-    return dec->decoder->Decode(audioIn, numBytes, decoded);
+    return dec->decoder->Decode(audioIn, numBytes, decoded);*/
+    return 0;
 }
