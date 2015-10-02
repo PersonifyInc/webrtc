@@ -40,8 +40,8 @@
           },
         }],
         ['OS=="android"', {
-          'includes': [
-            '../../../../../third_party/vo-aacenc/vo-aacenc.gypi',
+          'dependencies': [
+            '<(DEPTH)/third_party/vo-aacenc/vo-aacenc.gyp:*',
           ],
           'sources': [
             'AacVisualOnEncoder.cpp',
