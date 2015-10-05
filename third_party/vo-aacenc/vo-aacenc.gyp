@@ -12,7 +12,7 @@
   ],
   'targets': [
     {
-      'target_name': 'vo_aacenc',
+      'target_name': 'vo-aacenc',
       'type': 'static_library',
       'include_dirs': [
         'aacenc/basic_op',
