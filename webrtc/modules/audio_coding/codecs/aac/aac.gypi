@@ -16,22 +16,38 @@
         '<(webrtc_root)',
       ],
       'sources': [
-        'AacWindowsDecoder.cpp',
-        'AacWindowsEncoder.cpp',
         'aac_interface.cc',
         'audio_encoder_aac.cc',
         'include/AacDefines.h',
-        'include/AacWindowsDecoder.h',
-        'include/AacWindowsEncoder.h',
         'include/aac_interface.h',
         'include/audio_encoder_aac.h',
       ],
-      'link_settings': {
-        'libraries':[
-          '-lmfplat.lib',
-          '-lmfuuid.lib'
-        ],
-      },
+
+      'conditions': [
+        ['OS=="win"', {
+          'sources': [
+            'AacWindowsDecoder.cpp',
+            'AacWindowsEncoder.cpp',
+            'include/AacWindowsDecoder.h',
+            'include/AacWindowsEncoder.h',
+          ],
+          'link_settings': {
+            'libraries':[
+              '-lmfplat.lib',
+              '-lmfuuid.lib'
+            ],
+          },
+        }],
+        ['OS=="android"', {
+          'dependencies': [
+            '<(webrtc_root)/modules/audio_coding/codecs/aac/vo-aacenc/vo-aacenc.gyp:*',
+          ],
+          'sources': [
+            'AacVisualOnEncoder.cpp',
+            'include/AacVisualOnEncoder.h',
+          ],
+        }],
+      ],
     },
   ], # targets
 }

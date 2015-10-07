@@ -17,14 +17,12 @@
       'isac_fix',
       'pcm16b',
       'acmspeex',
+      'webrtc_aac',
     ],
     'neteq_defines': [
       'CODEC_SPEEX_16'
     ],
     'conditions': [
-     ['OS=="win"', {
-        'codecs': ['webrtc_aac',],
-      }],
       ['include_opus==1', {
         'codecs': ['webrtc_opus',],
         'neteq_defines': ['WEBRTC_CODEC_OPUS',],
@@ -134,6 +132,7 @@
           ],
           'defines': [
             'AUDIO_DECODER_UNITTEST',
+            'WEBRTC_CODEC_AAC',
             'WEBRTC_CODEC_G722',
             'WEBRTC_CODEC_ILBC',
             'WEBRTC_CODEC_ISACFX',
@@ -147,9 +146,6 @@
             'audio_decoder_unittest.cc',
           ],
           'conditions': [
-            ['OS=="win"', {
-              'defines': ['WEBRTC_CODEC_AAC',],
-            }],
             ['OS=="android"', {
               'dependencies': [
                 '<(DEPTH)/testing/android/native_test.gyp:native_test_native_code',

@@ -87,13 +87,3 @@ void AacVisualOnEncoder::CleanUp()
 {
     mCodecApi.Uninit(mHandle);
 }
-
-unsigned char* AacVisualOnEncoder::getSpecificInfo()
-{
-    return nullptr;
-}
-
-unsigned long  AacVisualOnEncoder::getSpecificInfoLen()
-{
-    return -1;
-}

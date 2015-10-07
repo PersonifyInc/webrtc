@@ -38,7 +38,7 @@
 #include "webrtc/modules/audio_coding/codecs/speex/include/speex_interface.h"
 #endif
 #ifdef WEBRTC_CODEC_AAC
-#include "webrtc/modules/audio_Coding/codecs/aac/include/aac_interface.h"
+#include "webrtc/modules/audio_coding/codecs/aac/include/aac_interface.h"
 #endif
 
 namespace webrtc {

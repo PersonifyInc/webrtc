@@ -1,11 +1,11 @@
 #ifndef AAC_VISUAL_ON_ENCODER_H
 #define AAC_VISUAL_ON_ENCODER_H
 
+#include "IAacEncoder.h"
 #include "webrtc/modules/audio_coding/codecs/aac/vo-aacenc/common/include/cmnMemory.h"
 #include "webrtc/modules/audio_coding/codecs/aac/vo-aacenc/common/include/voAAC.h"
-#include "webrtc/typedefs.h"
 
-class AacVisualOnEncoder
+class AacVisualOnEncoder : public IAacEncoder
 {
 
 public:
@@ -13,17 +13,13 @@ public:
 
     ~AacVisualOnEncoder();
 
-    bool Init();
+    bool Init() override;
 
     int Encode(short* audioIn,
                int inLen,
-               uint8_t* audioOut);
+               uint8_t* audioOut) override;
 
-    void CleanUp();
-
-    unsigned char* getSpecificInfo();
-
-    unsigned long  getSpecificInfoLen();
+    void CleanUp() override;
 
 protected:
     VO_AUDIO_CODECAPI mCodecApi;

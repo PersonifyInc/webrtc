@@ -1,11 +1,10 @@
 #ifndef AAC_WINDOWS_ENCODER_H
 #define AAC_WINDOWS_ENCODER_H
 
-#include "webrtc/typedefs.h"
-
+#include "IAacEncoder.h"
 #include <Mftransform.h>
 
-class AacWindowsEncoder
+class AacWindowsEncoder : public IAacEncoder
 {
 
 public:
@@ -13,17 +12,13 @@ public:
 
     ~AacWindowsEncoder();
 
-    bool Init();
+    bool Init() override;
 
     int Encode(short* audioIn,
                int inLen,
-               uint8_t* audioOut);
+               uint8_t* audioOut) override;
 
-    void CleanUp();
-
-    unsigned char* getSpecificInfo();
-
-    unsigned long  getSpecificInfoLen();
+    void CleanUp() override;
 
 protected:
 
