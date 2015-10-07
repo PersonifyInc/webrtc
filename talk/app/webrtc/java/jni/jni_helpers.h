@@ -54,6 +54,8 @@ namespace webrtc_jni {
 
 jint InitGlobalJniVariables(JavaVM *jvm);
 
+void UninitGlobalJniVariables();
+
 // Return a |JNIEnv*| usable on this thread or NULL if this thread is detached.
 JNIEnv* GetEnv();
 
