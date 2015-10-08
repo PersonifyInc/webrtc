@@ -25,6 +25,8 @@
 #endif  // FEATURE_ENABLE_SSL
 #endif  // USE_SSLSTREAM
 
+#include "webrtc/system_wrappers/interface/critical_section_wrapper.h"
+
 #include <iostream>
 #include <cstring>
 
@@ -139,6 +141,9 @@ namespace buzz {
     int ret = pthread_create(&thread, NULL, DoTask, (void*)this);
     pthread_detach(thread);
 #endif
+
+    input_queue_crit_.reset(webrtc::CriticalSectionWrapper::CreateCriticalSection());
+    output_queue_crit_.reset(webrtc::CriticalSectionWrapper::CreateCriticalSection());
   }
 
   void BoshSocket::CreateCricketSocket(int family) {
@@ -270,6 +275,7 @@ namespace buzz {
 
         if (input_msg.len_ != 0) {
           temp_socket->pending_ = false;
+          webrtc::CriticalSectionScoped cs(input_queue_crit_.get());
           input_queue_.push(input_msg);
           SignalRead();
         }
@@ -278,6 +284,8 @@ namespace buzz {
   }
 
   void BoshSocket::OnWriteEvent(rtc::AsyncSocket * socket) {
+    webrtc::CriticalSectionScoped cs(output_queue_crit_.get());
+
     // In case no message to send, then return
     if (output_queue_.empty())
     {
@@ -289,6 +297,7 @@ namespace buzz {
     }
     std::string temp_data(output_queue_.front().data_, output_queue_.front().len_);
     std::string generated_data = temp_data;
+
     output_queue_.pop();
     if (temp_data.compare(0, 7, "CONNECT") != 0) {
       if (temp_data == "end") {
@@ -440,6 +449,7 @@ namespace buzz {
 
           if (input_msg.len_ != 0) {
             temp_socket->pending_ = false;
+            webrtc::CriticalSectionScoped cs(input_queue_crit_.get());
             input_queue_.push(input_msg);
             SignalRead();
           }
@@ -447,13 +457,16 @@ namespace buzz {
       }
     }
     if ((events & rtc::SE_WRITE)) {
-      if (output_queue_.empty())
       {
-        return;
+        webrtc::CriticalSectionScoped cs(output_queue_crit_.get());
+        if (output_queue_.empty())
+        {
+          return;
+        }
+        std::string temp_data(output_queue_.front().data_, output_queue_.front().len_);
+        std::string generated_data = temp_data;
+        output_queue_.pop();
       }
-      std::string temp_data(output_queue_.front().data_, output_queue_.front().len_);
-      std::string generated_data = temp_data;
-      output_queue_.pop();
       if (temp_data.compare(0, 7, "CONNECT") != 0) {
         if (temp_data == "end") {
           generated_data = generator_->GenerateLogout();
@@ -558,6 +571,7 @@ namespace buzz {
   }
 
   bool BoshSocket::Read(char * data, size_t len, size_t* len_read) {
+    webrtc::CriticalSectionScoped cs(input_queue_crit_.get());
     if (input_queue_.size() == 0) {
       return false;
     }
@@ -570,6 +584,7 @@ namespace buzz {
 
   bool BoshSocket::Write(const char * data, size_t len) {
     buzz::OutputMsg msg(data, len);
+    webrtc::CriticalSectionScoped cs(output_queue_crit_.get());
     output_queue_.push(msg);
     return true;
   }
@@ -674,6 +689,11 @@ namespace buzz {
     lang_ = lang;
   }
 
+  bool BoshSocket::OutputEmpty() {
+    webrtc::CriticalSectionScoped cs(output_queue_crit_.get());
+    return output_queue_.empty();
+  }
+
   void BoshSocket::SendConnect(buzz::ManagedSocket* socket) {
     std::stringstream ss;
     ss << "CONNECT " << server_host_ << ":" << server_port_ << " HTTP/1.1\r\n";
@@ -681,7 +701,11 @@ namespace buzz {
     ss << "Proxy-Connection: keep-alive\r\n\r\n";
 
     buzz::OutputMsg msg(ss.str().c_str(), ss.str().length());
-    output_queue_.push(msg);
+    {
+      webrtc::CriticalSectionScoped cs(output_queue_crit_.get());
+      output_queue_.push(msg);
+    }
+
 #ifndef USE_SSLSTREAM
     OnWriteEvent(socket->socket_);
 #else // USE_SSLSTREAM
