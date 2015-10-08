@@ -6,10 +6,15 @@
 #include "webrtc/libjingle/xmpp/xmppstanzagenerator.h"
 #include "webrtc/base/asyncsocket.h"
 #include "webrtc/base/bytebuffer.h"
+#include "webrtc/base/scoped_ptr.h"
 #include "webrtc/base/sigslot.h"
 #include <queue>
 #include <string>
 #include <time.h>
+
+namespace webrtc {
+    class CriticalSectionWrapper;
+}
 
 namespace rtc {
   class StreamInterface;
@@ -97,7 +102,7 @@ namespace buzz {
     virtual void SetProxy(const std::string & host, int port);
     virtual void SetInfo(const std::string & domain,
                          const std::string & lang);
-    bool OutputEmpty() { return output_queue_.empty();}
+    bool OutputEmpty();
     void TrySending();
     void TrySending(ManagedSocket* socket);
     buzz::ManagedSocket* GetCurrentSocket() {
@@ -131,7 +136,9 @@ namespace buzz {
     rtc::ByteBuffer buffer_;
     buzz::TlsOptions tls_;
 
+    rtc::scoped_ptr<webrtc::CriticalSectionWrapper> output_queue_crit_;
     std::queue<buzz::OutputMsg> output_queue_;
+    rtc::scoped_ptr<webrtc::CriticalSectionWrapper> input_queue_crit_;
     std::queue<buzz::InputMsg> input_queue_;
 
     bool start_sent_;
