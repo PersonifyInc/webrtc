@@ -253,7 +253,7 @@ namespace buzz{
 
       // Remove the <body...> and </body> tags
       if (stop != std::string::npos) { // Partial body (start of a message)
-        content = content.substr(0, stop);
+        str = content.substr(0, stop);
         return true;
       }
       else {
