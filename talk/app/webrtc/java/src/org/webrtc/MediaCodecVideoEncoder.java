@@ -69,7 +69,7 @@ public class MediaCodecVideoEncoder {
     {"OMX.qcom.", "OMX.Intel." };
   // List of supported HW H.264 codecs.
   private static final String[] supportedH264HwCodecPrefixes =
-    {"OMX.qcom." };
+    {"OMX.qcom.",  "OMX.Intel." };
   // Bitrate modes - should be in sync with OMX_VIDEO_CONTROLRATETYPE defined
   // in OMX_Video.h
   private static final int VIDEO_ControlRateVariable = 1;
