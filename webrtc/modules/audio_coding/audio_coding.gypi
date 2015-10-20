@@ -10,6 +10,7 @@
   'includes': [
     '../../build/common.gypi',
     'codecs/interfaces.gypi',
+    'codecs/aac/aac.gypi',
     'codecs/cng/cng.gypi',
     'codecs/g711/g711.gypi',
     'codecs/g722/g722.gypi',
@@ -25,9 +26,6 @@
   'conditions': [
     ['include_opus==1', {
       'includes': ['codecs/opus/opus.gypi',],
-    }],
-    ['OS=="win"', {
-      'includes': ['codecs/aac/aac.gypi',],
     }],
   ],
 }

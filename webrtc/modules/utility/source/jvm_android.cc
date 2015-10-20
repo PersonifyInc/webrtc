@@ -92,13 +92,13 @@ AttachCurrentThreadIfNeeded::~AttachCurrentThreadIfNeeded() {
 
 // GlobalRef implementation.
 GlobalRef::GlobalRef(JNIEnv* jni, jobject object)
-    : jni_(jni), j_object_(NewGlobalRef(jni, object)) {
+    : jni_(jni), j_object_(jni->NewGlobalRef(object)) {
   ALOGD("GlobalRef::ctor%s", GetThreadInfo().c_str());
 }
 
 GlobalRef::~GlobalRef() {
   ALOGD("GlobalRef::dtor%s", GetThreadInfo().c_str());
-  DeleteGlobalRef(jni_, j_object_);
+  jni_->DeleteGlobalRef(j_object_);
 }
 
 jboolean GlobalRef::CallBooleanMethod(jmethodID methodID, ...) {
@@ -145,7 +145,7 @@ rtc::scoped_ptr<GlobalRef> NativeRegistration::NewObject(
   va_list args;
   va_start(args, signature);
   jobject obj = jni_->NewObjectV(j_class_,
-                                 GetMethodID(jni_, j_class_, name, signature),
+                                 jni_->GetMethodID(j_class_, name, signature),
                                  args);
   CHECK_EXCEPTION(jni_) << "Error during NewObjectV";
   va_end(args);
@@ -155,12 +155,12 @@ rtc::scoped_ptr<GlobalRef> NativeRegistration::NewObject(
 // JavaClass implementation.
 jmethodID JavaClass::GetMethodId(
     const char* name, const char* signature) {
-  return GetMethodID(jni_, j_class_, name, signature);
+  return jni_->GetMethodID(j_class_, name, signature);
 }
 
 jmethodID JavaClass::GetStaticMethodId(
     const char* name, const char* signature) {
-  return GetStaticMethodID(jni_, j_class_, name, signature);
+  return jni_->GetStaticMethodID(j_class_, name, signature);
 }
 
 jobject JavaClass::CallStaticObjectMethod(jmethodID methodID, ...) {
@@ -229,7 +229,7 @@ JVM::JVM(JavaVM* jvm, jobject context)
     : jvm_(jvm) {
   ALOGD("JVM::JVM%s", GetThreadInfo().c_str());
   CHECK(jni()) << "AttachCurrentThread() must be called on this thread.";
-  context_ = NewGlobalRef(jni(), context);
+  context_ = jni()->NewGlobalRef(context);
   LoadClasses(jni());
 }
 

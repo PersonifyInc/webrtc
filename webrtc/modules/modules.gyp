@@ -78,6 +78,7 @@
             'video_codecs_test_framework',
             'video_processing',
             'webrtc_utility',
+            'webrtc_aac',
             'webrtc_video_coding',
             'acmspeex',
             '<@(neteq_dependencies)',
@@ -292,9 +293,6 @@
             'video_processing/main/test/unit_test/video_processing_unittest.h',
           ],
           'conditions': [
-            ['OS=="win"', {
-              'dependencies': ['webrtc_aac'],
-            }],
             ['enable_bwe_test_logging==1', {
               'defines': [ 'BWE_TEST_LOGGING_COMPILE_TIME_ENABLE=1' ],
             }, {

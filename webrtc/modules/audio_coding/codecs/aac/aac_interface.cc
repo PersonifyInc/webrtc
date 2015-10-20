@@ -8,18 +8,26 @@
 *  be found in the AUTHORS file in the root of the source tree.
 */
 
-#include "AacWindowsDecoder.h"
+#include "IAacEncoder.h"
+#include "IAacDecoder.h"
+#ifdef WIN32
 #include "AacWindowsEncoder.h"
+#include "AacWindowsDecoder.h"
+#elif ANDROID
+#include "AacVisualOnEncoder.h"
+#endif
 #include "aac_interface.h"
+
+#include <stdlib.h>
 
 struct WebRtcAacEncInst
 {
-    AacWindowsEncoder* encoder;
+    IAacEncoder* encoder;
 };
 
 struct WebRtcAacDecInst
 {
-    AacWindowsDecoder* decoder;
+    IAacDecoder* decoder;
 };
 
 int16_t WebRtcAac_EncoderCreate(AacEncInst** enc)
@@ -30,7 +38,11 @@ int16_t WebRtcAac_EncoderCreate(AacEncInst** enc)
         return -1;
     }
 
+#ifdef WIN32
     (*enc)->encoder = new AacWindowsEncoder();
+#elif ANDROID
+    (*enc)->encoder = new AacVisualOnEncoder();
+#endif
     if ((*enc)->encoder == nullptr)
     {
         return -1;
@@ -91,7 +103,9 @@ int16_t WebRtcAac_DecoderCreate(AacDecInst** dec)
         return -1;
     }
 
+#ifdef WIN32
     (*dec)->decoder = new AacWindowsDecoder();
+#endif
     if ((*dec)->decoder == nullptr)
     {
         return -1;

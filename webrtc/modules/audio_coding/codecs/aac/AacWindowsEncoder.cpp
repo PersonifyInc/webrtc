@@ -315,13 +315,3 @@ void AacWindowsEncoder::CleanUp()
     delete[] mAudioSpecificConfig;
     mAudioSpecificConfig = nullptr;
 }
-
-unsigned char* AacWindowsEncoder::getSpecificInfo()
-{
-    return mAudioSpecificConfig;
-}
-
-unsigned long AacWindowsEncoder::getSpecificInfoLen()
-{
-    return AUDIO_SPECIFIC_CONFIG_LEN_IN_BYTES;
-}

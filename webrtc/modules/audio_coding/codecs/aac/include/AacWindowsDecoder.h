@@ -1,24 +1,23 @@
 #ifndef AAC_WINDOWS_DECODER_H
 #define AAC_WINDOWS_DECODER_H
 
-#include "webrtc/typedefs.h"
-
+#include "IAacDecoder.h"
 #include <Mftransform.h>
 
-class AacWindowsDecoder
+class AacWindowsDecoder : public IAacDecoder
 {
 public:
     AacWindowsDecoder();
 
     ~AacWindowsDecoder();
 
-    bool Init();
+    bool Init() override;
 
     int Decode(const uint8_t* audioIn,
                int numBytes,
-               int16_t* decoded);
+               int16_t* decoded) override;
 
-    void CleanUp();
+    void CleanUp() override;
 
 private:
 
