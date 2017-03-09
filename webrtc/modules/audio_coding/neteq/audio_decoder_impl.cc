@@ -455,7 +455,7 @@ int AudioDecoderAac::DecodeInternal(const uint8_t* encoded,
                                     SpeechType* speech_type)
 {
   int16_t temp_type = 1;  // Default is speech.
-  int16_t ret = WebRtcAac_Decode(dec_state_, encoded, encoded_len, decoded);
+  int16_t ret = WebRtcAac_Decode(dec_state_, encoded, static_cast<int16_t>(encoded_len), decoded);
   *speech_type = ConvertSpeechType(temp_type);
   return ret;
 }
