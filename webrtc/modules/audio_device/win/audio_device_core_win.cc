@@ -236,11 +236,16 @@ bool AudioDeviceWindowsCore::CoreAudioIsSupported()
     // by a corresponding call to CoUninitialize.
     //
     ScopedCOMInitializer comInit(ScopedCOMInitializer::kMTA);
+
+    // HACK: disable this check [for MTA] as some Personify apps don't satisfy this condition
+    // yet use Core Audio
+#if 0
     if (!comInit.succeeded()) {
       // Things will work even if an STA thread is calling this method but we
       // want to ensure that MTA is used and therefore return false here.
       return false;
     }
+#endif
 
     // 3) Check if the MMDevice API is available.
     //
