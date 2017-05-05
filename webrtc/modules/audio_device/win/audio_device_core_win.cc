@@ -1980,9 +1980,10 @@ int16_t AudioDeviceWindowsCore::RecordingDevices()
 
     CriticalSectionScoped lock(&_critSect);
 
-    if (_RefreshDeviceList(eCapture) != -1)
+    // HACK: force to use loopback devices
+    if (_RefreshDeviceList(eRender /*eCapture*/) != -1)
     {
-        return (_DeviceListCount(eCapture));
+        return (_DeviceListCount(eRender /*eCapture*/));
     }
 
     return -1;
