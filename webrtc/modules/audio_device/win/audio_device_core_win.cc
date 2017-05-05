@@ -1933,11 +1933,11 @@ int32_t AudioDeviceWindowsCore::RecordingDeviceName(
     // Get the endpoint device's friendly-name
     if (defaultCommunicationDevice)
     {
-        ret = _GetDefaultDeviceName(eCapture, eCommunications, szDeviceName, bufferLen);
+        ret = _GetDefaultDeviceName(eRender/*eCapture*/, eCommunications, szDeviceName, bufferLen);
     }
     else
     {
-        ret = _GetListDeviceName(eCapture, index, szDeviceName, bufferLen);
+        ret = _GetListDeviceName(eRender/*eCapture*/, index, szDeviceName, bufferLen);
     }
 
     if (ret == 0)
@@ -1952,11 +1952,11 @@ int32_t AudioDeviceWindowsCore::RecordingDeviceName(
     // Get the endpoint ID string (uniquely identifies the device among all audio endpoint devices)
     if (defaultCommunicationDevice)
     {
-        ret = _GetDefaultDeviceID(eCapture, eCommunications, szDeviceName, bufferLen);
+        ret = _GetDefaultDeviceID(eRender/*eCapture*/, eCommunications, szDeviceName, bufferLen);
     }
     else
     {
-        ret = _GetListDeviceID(eCapture, index, szDeviceName, bufferLen);
+        ret = _GetListDeviceID(eRender/*eCapture*/, index, szDeviceName, bufferLen);
     }
 
     if (guid != NULL && ret == 0)
