@@ -106,7 +106,9 @@ int DeviceManager::GetCapabilities() {
 }
 
 bool DeviceManager::GetAudioInputDevices(std::vector<Device>* devices) {
-  return GetAudioDevices(true, devices);
+    // HACK: use output device list (we're going to do loopback)
+  //return GetAudioDevices(true, devices);
+    return GetAudioDevices(false, devices);
 }
 
 bool DeviceManager::GetAudioOutputDevices(std::vector<Device>* devices) {
