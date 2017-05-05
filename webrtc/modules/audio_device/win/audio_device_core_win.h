@@ -194,6 +194,8 @@ public:
     virtual int32_t EnableBuiltInAEC(bool enable);
     virtual bool BuiltInAECIsEnabled() const;
 
+    bool IsUsingLoopbackCapture() const { return _usingLoopbackCapture; }
+
 public:
     virtual bool PlayoutWarning() const;
     virtual bool PlayoutError() const;
@@ -237,6 +239,9 @@ private:    // thread functions
 
     void _Lock() { _critSect.Enter(); };
     void _UnLock() { _critSect.Leave(); };
+
+private:    // Loopback capture support
+    virtual void ForceCaptureSamplesReady();
 
 private:
     int32_t Id() {return _id;}
@@ -350,6 +355,7 @@ private:
     bool                                    _microphoneIsInitialized;
 
     bool                                    _usingInputDeviceIndex;
+    bool                                    _usingLoopbackCapture;
     bool                                    _usingOutputDeviceIndex;
     AudioDeviceModule::WindowsDeviceType    _inputDevice;
     AudioDeviceModule::WindowsDeviceType    _outputDevice;

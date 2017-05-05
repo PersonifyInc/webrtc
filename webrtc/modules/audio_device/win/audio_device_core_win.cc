@@ -469,7 +469,8 @@ AudioDeviceWindowsCore::AudioDeviceWindowsCore(const int32_t id) :
     _outputDevice(AudioDeviceModule::kDefaultCommunicationDevice),
     _inputDeviceIndex(0),
     _outputDeviceIndex(0),
-    _newMicLevel(0)
+    _newMicLevel(0),
+    _usingLoopbackCapture(false)
 {
     WEBRTC_TRACE(kTraceMemory, kTraceAudioDevice, id, "%s created", __FUNCTION__);
     assert(_comInit.succeeded());
@@ -861,7 +862,7 @@ int32_t AudioDeviceWindowsCore::InitMicrophone()
     if (_usingInputDeviceIndex)
     {
         // Refresh the selected capture endpoint device using current index
-        ret = _GetListDevice(eCapture, _inputDeviceIndex, &_ptrDeviceIn);
+        ret = _GetListDevice(IsUsingLoopbackCapture() ? eRender : eCapture, _inputDeviceIndex, &_ptrDeviceIn);
     }
     else
     {
@@ -1980,9 +1981,10 @@ int16_t AudioDeviceWindowsCore::RecordingDevices()
 
     CriticalSectionScoped lock(&_critSect);
 
-    if (_RefreshDeviceList(eCapture) != -1)
+    if (_RefreshDeviceList(eCapture) != 1 &&
+        _RefreshDeviceList(eRender) != 1)
     {
-        return (_DeviceListCount(eCapture));
+        return (_DeviceListCount(eCapture) + _DeviceListCount(eRender));
     }
 
     return -1;
@@ -2013,13 +2015,34 @@ int32_t AudioDeviceWindowsCore::SetRecordingDevice(uint16_t index)
 
     HRESULT hr(S_OK);
 
+    assert(_ptrRenderCollection != NULL);
     assert(_ptrCaptureCollection != NULL);
 
     // Select an endpoint capture device given the specified index
     SAFE_RELEASE(_ptrDeviceIn);
-    hr = _ptrCaptureCollection->Item(
-                                 index,
-                                 &_ptrDeviceIn);
+
+    // Determine if the index refers to an old-style recording device (in _ptrCaptureCollection) or
+    // a loopback device (in _ptrRenderCollection)
+    if (index >= _DeviceListCount(eCapture))
+    {
+        // Case: loopback device
+        _usingLoopbackCapture = true;
+        index -= _DeviceListCount(eCapture);
+        hr = _ptrRenderCollection->Item(
+            index,
+            &_ptrDeviceIn);
+
+        // ... and set the playout device to the same thing!
+        SetPlayoutDevice(index);
+    }
+    else
+    {
+        _usingLoopbackCapture = false;
+        hr = _ptrCaptureCollection->Item(
+            index,
+            &_ptrDeviceIn);
+    }
+
     if (FAILED(hr))
     {
         _TraceCOMError(hr);
@@ -2625,15 +2648,22 @@ int32_t AudioDeviceWindowsCore::InitRecording()
     }
 
     // Create a capturing stream.
+    DWORD streamFlags =
+        AUDCLNT_STREAMFLAGS_EVENTCALLBACK |          // processing of the audio buffer by the client will be event driven
+        AUDCLNT_STREAMFLAGS_NOPERSIST;               // volume and mute settings for an audio session will not persist across system restarts
+
+    if (IsUsingLoopbackCapture())
+    {
+        streamFlags |= AUDCLNT_STREAMFLAGS_LOOPBACK; // Loopback support
+    }
+
     hr = _ptrClientIn->Initialize(
                           AUDCLNT_SHAREMODE_SHARED,             // share Audio Engine with other applications
-                          AUDCLNT_STREAMFLAGS_EVENTCALLBACK |   // processing of the audio buffer by the client will be event driven
-                          AUDCLNT_STREAMFLAGS_NOPERSIST,        // volume and mute settings for an audio session will not persist across system restarts
+                          streamFlags,
                           0,                                    // required for event-driven shared mode
                           0,                                    // periodicity
                           &Wfx,                                 // selected wave format
                           NULL);                                // session GUID
-
 
     if (hr != S_OK)
     {
@@ -2695,6 +2725,13 @@ int32_t AudioDeviceWindowsCore::InitRecording()
     CoTaskMemFree(pWfxClosestMatch);
 
     WEBRTC_TRACE(kTraceInfo, kTraceAudioDevice, _id, "capture side is now initialized");
+
+    // Initialize Playout if we're doing loopback capture...
+    if (IsUsingLoopbackCapture())
+    {
+        InitPlayout();
+    }
+
     return 0;
 
 Exit:
@@ -2809,6 +2846,12 @@ int32_t AudioDeviceWindowsCore::StartRecording()
     _playAcc = 0;
     _recording = true;
 
+    // Start the render thread if we're doing loopback capture
+    if (IsUsingLoopbackCapture())
+    {
+        StartPlayout();
+    }
+
     return 0;
 }
 
@@ -2823,6 +2866,12 @@ int32_t AudioDeviceWindowsCore::StopRecording()
     if (!_recIsInitialized)
     {
         return 0;
+    }
+
+    // Loopback case: we have a playout thread, stop it.
+    if (IsUsingLoopbackCapture())
+    {
+        StopPlayout();
     }
 
     _Lock();
@@ -3366,6 +3415,18 @@ DWORD AudioDeviceWindowsCore::DoSetCaptureVolumeThread()
 }
 
 // ----------------------------------------------------------------------------
+//  ForceCaptureSamplesReady
+// ----------------------------------------------------------------------------
+
+void AudioDeviceWindowsCore::ForceCaptureSamplesReady()
+{
+    if (_hCaptureSamplesReadyEvent)
+    {
+        SetEvent(_hCaptureSamplesReadyEvent);
+    }
+}
+
+// ----------------------------------------------------------------------------
 //  DoRenderThread
 // ----------------------------------------------------------------------------
 
@@ -3540,57 +3601,79 @@ DWORD AudioDeviceWindowsCore::DoRenderThread()
 
             // Write n*10ms buffers to the render buffer
             const uint32_t n10msBuffers = (framesAvailable / _playBlockSize);
-            for (uint32_t n = 0; n < n10msBuffers; n++)
+
+            // TODO: figure out if this is really where we should be putting this -- was previously assuming this was being driven by
+            // device callbacks, but this suggests otherwise.
+            if (IsUsingLoopbackCapture() && _recording)
             {
-                // Get pointer (i.e., grab the buffer) to next space in the shared render buffer.
-                hr = _ptrRenderClient->GetBuffer(_playBlockSize, &pData);
-                EXIT_ON_ERROR(hr);
+                ForceCaptureSamplesReady();
 
-                QueryPerformanceCounter(&t1);    // measure time: START
-
-                if (_ptrAudioBuffer)
+                for (uint32_t n = 0; n < n10msBuffers; n++)
                 {
-                    // Request data to be played out (#bytes = _playBlockSize*_audioFrameSize)
-                    _UnLock();
-                    int32_t nSamples =
-                    _ptrAudioBuffer->RequestPlayoutData(_playBlockSize);
-                    _Lock();
+                    hr = _ptrRenderClient->GetBuffer(_playBlockSize, &pData);
+                    EXIT_ON_ERROR(hr);
 
-                    if (nSamples == -1)
-                    {
-                        _UnLock();
-                        WEBRTC_TRACE(kTraceCritical, kTraceAudioDevice, _id,
-                                     "failed to read data from render client");
-                        goto Exit;
-                    }
+                    hr = _ptrRenderClient->ReleaseBuffer(_playBlockSize, AUDCLNT_BUFFERFLAGS_SILENT);
+                    EXIT_ON_ERROR(hr);
 
-                    // Sanity check to ensure that essential states are not modified during the unlocked period
-                    if (_ptrRenderClient == NULL || _ptrClientOut == NULL)
-                    {
-                        _UnLock();
-                        WEBRTC_TRACE(kTraceCritical, kTraceAudioDevice, _id, "output state has been modified during unlocked period");
-                        goto Exit;
-                    }
-                    if (nSamples != static_cast<int32_t>(_playBlockSize))
-                    {
-                        WEBRTC_TRACE(kTraceWarning, kTraceAudioDevice, _id, "nSamples(%d) != _playBlockSize(%d)", nSamples, _playBlockSize);
-                    }
-
-                    // Get the actual (stored) data
-                    nSamples = _ptrAudioBuffer->GetPlayoutData((int8_t*)pData);
+                    _writtenSamples += _playBlockSize;
                 }
+            }
+            else
+            {
+                for (uint32_t n = 0; n < n10msBuffers; n++)
+                {
+                    // Get pointer (i.e., grab the buffer) to next space in the shared render buffer.
+                    hr = _ptrRenderClient->GetBuffer(_playBlockSize, &pData);
+                    EXIT_ON_ERROR(hr);
 
-                QueryPerformanceCounter(&t2);    // measure time: STOP
-                time = (int)(t2.QuadPart-t1.QuadPart);
-                _playAcc += time;
+                    QueryPerformanceCounter(&t1);    // measure time: START
 
-                DWORD dwFlags(0);
-                hr = _ptrRenderClient->ReleaseBuffer(_playBlockSize, dwFlags);
-                // See http://msdn.microsoft.com/en-us/library/dd316605(VS.85).aspx
-                // for more details regarding AUDCLNT_E_DEVICE_INVALIDATED.
-                EXIT_ON_ERROR(hr);
+                    if (_ptrAudioBuffer)
+                    {
+                        // Request data to be played out (#bytes = _playBlockSize*_audioFrameSize)
+                        _UnLock();
 
-                _writtenSamples += _playBlockSize;
+                        int32_t nSamples =
+                            _ptrAudioBuffer->RequestPlayoutData(_playBlockSize);
+                        _Lock();
+
+                        if (nSamples == -1)
+                        {
+                            _UnLock();
+                            WEBRTC_TRACE(kTraceCritical, kTraceAudioDevice, _id,
+                                "failed to read data from render client");
+                            goto Exit;
+                        }
+
+                        // Sanity check to ensure that essential states are not modified during the unlocked period
+                        if (_ptrRenderClient == NULL || _ptrClientOut == NULL)
+                        {
+                            _UnLock();
+                            WEBRTC_TRACE(kTraceCritical, kTraceAudioDevice, _id, "output state has been modified during unlocked period");
+                            goto Exit;
+                        }
+                        if (nSamples != static_cast<int32_t>(_playBlockSize))
+                        {
+                            WEBRTC_TRACE(kTraceWarning, kTraceAudioDevice, _id, "nSamples(%d) != _playBlockSize(%d)", nSamples, _playBlockSize);
+                        }
+
+                        // Get the actual (stored) data
+                        nSamples = _ptrAudioBuffer->GetPlayoutData((int8_t*)pData);
+                    }
+
+                    QueryPerformanceCounter(&t2);    // measure time: STOP
+                    time = (int)(t2.QuadPart - t1.QuadPart);
+                    _playAcc += time;
+
+                    DWORD dwFlags(0);
+                    hr = _ptrRenderClient->ReleaseBuffer(_playBlockSize, dwFlags);
+                    // See http://msdn.microsoft.com/en-us/library/dd316605(VS.85).aspx
+                    // for more details regarding AUDCLNT_E_DEVICE_INVALIDATED.
+                    EXIT_ON_ERROR(hr);
+
+                    _writtenSamples += _playBlockSize;
+                }
             }
 
             // Check the current delay on the playout side.
@@ -4461,7 +4544,14 @@ int32_t AudioDeviceWindowsCore::_GetListDeviceName(EDataFlow dir, int index, LPW
     }
     else if (NULL != _ptrCaptureCollection)
     {
-        hr = _ptrCaptureCollection->Item(index, &pDevice);
+        if (index >= _DeviceListCount(eCapture))
+        {
+            hr = _ptrRenderCollection->Item(index - _DeviceListCount(eCapture), &pDevice);
+        }
+        else
+        {
+            hr = _ptrCaptureCollection->Item(index, &pDevice);
+        }
     }
 
     if (FAILED(hr))
@@ -4539,7 +4629,14 @@ int32_t AudioDeviceWindowsCore::_GetListDeviceID(EDataFlow dir, int index, LPWST
     }
     else if (NULL != _ptrCaptureCollection)
     {
-        hr = _ptrCaptureCollection->Item(index, &pDevice);
+        if (index >= _DeviceListCount(eCapture))
+        {
+            hr = _ptrRenderCollection->Item(index - _DeviceListCount(eCapture), &pDevice);
+        }
+        else
+        {
+            hr = _ptrCaptureCollection->Item(index, &pDevice);
+        }
     }
 
     if (FAILED(hr))
