@@ -180,6 +180,9 @@ private:
 
 bool AudioDeviceWindowsCore::CoreAudioIsSupported()
 {
+    // NASTY HACK -- just force it since we fail some of the below checks when stuff is changed-up.
+    return true;
+#if 0
     WEBRTC_TRACE(kTraceInfo, kTraceAudioDevice, -1, "%s", __FUNCTION__);
 
     bool MMDeviceIsAvailable(false);
@@ -391,6 +394,7 @@ bool AudioDeviceWindowsCore::CoreAudioIsSupported()
     }
 
     return (coreAudioIsSupported);
+#endif
 }
 
 // ============================================================================
@@ -861,14 +865,14 @@ int32_t AudioDeviceWindowsCore::InitMicrophone()
     if (_usingInputDeviceIndex)
     {
         // Refresh the selected capture endpoint device using current index
-        ret = _GetListDevice(eCapture, _inputDeviceIndex, &_ptrDeviceIn);
+        ret = _GetListDevice(eRender /*eCapture*/, _inputDeviceIndex, &_ptrDeviceIn);
     }
     else
     {
         ERole role;
         (_inputDevice == AudioDeviceModule::kDefaultDevice) ? role = eConsole : role = eCommunications;
         // Refresh the selected capture endpoint device using role
-        ret = _GetDefaultDevice(eCapture, role, &_ptrDeviceIn);
+        ret = _GetDefaultDevice(eRender /*eCapture*/, role, &_ptrDeviceIn);
     }
 
     if (ret != 0 || (_ptrDeviceIn == NULL))
@@ -2014,11 +2018,13 @@ int32_t AudioDeviceWindowsCore::SetRecordingDevice(uint16_t index)
 
     HRESULT hr(S_OK);
 
-    assert(_ptrCaptureCollection != NULL);
+    assert(_ptrRenderCollection != NULL);
+    //assert(_ptrCaptureCollection != NULL);
 
     // Select an endpoint capture device given the specified index
     SAFE_RELEASE(_ptrDeviceIn);
-    hr = _ptrCaptureCollection->Item(
+    //hr = _ptrCaptureCollection->Item(
+    hr = _ptrRenderCollection->Item(
                                  index,
                                  &_ptrDeviceIn);
     if (FAILED(hr))
