@@ -15,6 +15,7 @@
 
 #if defined(_WIN32)
 #include <conio.h>
+#include <Windows.h>
 #elif defined(WEBRTC_LINUX) || defined(WEBRTC_MAC)
 #include <termios.h>    // tcgetattr
 #endif
@@ -618,8 +619,21 @@ FuncTestManager::~FuncTestManager()
 {
 }
 
+class TraceDbgView : public webrtc::TraceCallback 
+{
+public:
+    virtual void Print(TraceLevel level, const char* message, int length) override
+    {
+        ::OutputDebugStringA(message);
+    }
+};
+
 int32_t FuncTestManager::Init()
 {
+    // TODO: seteup WebRTC tracing?
+    Trace::CreateTrace();
+    Trace::set_level_filter(kTraceAll);
+    Trace::SetTraceCallback(new TraceDbgView());
     EXPECT_TRUE((_processThread = ProcessThread::Create()) != NULL);
     if (_processThread == NULL)
     {
