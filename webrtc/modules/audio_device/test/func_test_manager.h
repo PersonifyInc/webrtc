@@ -192,6 +192,42 @@ private:
     Resampler _resampler;
 };
 
+class AudioTransportPlaybackImpl : public AudioTransport
+{
+public:
+    int32_t RecordedDataIsAvailable(const void* audioSamples,
+        const uint32_t nSamples,
+        const uint8_t nBytesPerSample,
+        const uint8_t nChannels,
+        const uint32_t samplesPerSec,
+        const uint32_t totalDelayMS,
+        const int32_t clockDrift,
+        const uint32_t currentMicLevel,
+        const bool keyPressed,
+        uint32_t& newMicLevel) override
+    {
+        return 0;
+    };
+
+    int32_t NeedMorePlayData(const uint32_t nSamples,
+        const uint8_t nBytesPerSample,
+        const uint8_t nChannels,
+        const uint32_t samplesPerSec,
+        void* audioSamples,
+        uint32_t& nSamplesOut,
+        int64_t* elapsed_time_ms,
+        int64_t* ntp_time_ms) override;
+
+    AudioTransportPlaybackImpl(AudioDeviceModule* audioDevice, AudioDeviceModule* audioCaptureDevice);
+
+private:
+    AudioDeviceModule* _audioDevice;
+    AudioDeviceModule* _audioCaptureDevice;
+
+    uint32_t _recCount;
+    uint32_t _playCount;
+};
+
 // ----------------------------------------------------------------------------
 //  FuncTestManager
 // ----------------------------------------------------------------------------
@@ -218,7 +254,7 @@ private:
     int32_t TestDeviceRemoval();
     int32_t TestExtra();
     int32_t TestMicrophoneAGC();
-    int32_t SelectPlayoutDevice();
+    int32_t SelectPlayoutDevice(AudioDeviceModule* adm = nullptr);
     int32_t SelectRecordingDevice();
     int32_t TestAdvancedMBAPI();
 private:
@@ -230,8 +266,10 @@ private:
 
     rtc::scoped_ptr<ProcessThread> _processThread;
     AudioDeviceModule* _audioDevice;
+    AudioDeviceModule* _audioDevicePlayback;
     AudioEventObserver* _audioEventObserver;
     AudioTransportImpl* _audioTransport;
+    AudioTransportPlaybackImpl* _audioTransportPlayback;
 };
 
 }  // namespace webrtc

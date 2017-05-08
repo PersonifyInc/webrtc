@@ -600,6 +600,32 @@ void AudioTransportImpl::PullRenderData(int bits_per_sample, int sample_rate,
                                         int64_t* elapsed_time_ms,
                                         int64_t* ntp_time_ms) {}
 
+AudioTransportPlaybackImpl::AudioTransportPlaybackImpl(AudioDeviceModule* audioDevice, AudioDeviceModule* audioCaptureDevice) :
+_audioDevice(audioDevice),
+_audioCaptureDevice(audioCaptureDevice),
+_recCount(0),
+_playCount(0)
+{
+}
+
+// ----------------------------------------------------------------------------
+//	AudioTransportPlaybackImpl::SetFilePlayout
+// ----------------------------------------------------------------------------
+int32_t AudioTransportPlaybackImpl::NeedMorePlayData(
+    const uint32_t nSamples,
+    const uint8_t nBytesPerSample,
+    const uint8_t nChannels,
+    const uint32_t samplesPerSec,
+    void* audioSamples,
+    uint32_t& nSamplesOut,
+    int64_t* elapsed_time_ms,
+    int64_t* ntp_time_ms)
+{
+    // just force/poke capture device here!
+    _audioCaptureDevice->ForceCaptureSamplesReady();
+    return 0;
+}
+
 FuncTestManager::FuncTestManager() :
     _audioDevice(NULL),
     _audioEventObserver(NULL),
@@ -641,7 +667,7 @@ int32_t FuncTestManager::Init()
     }
     _processThread->Start();
 
-    // create the Audio Device module
+    // create the Audio Device modules
     EXPECT_TRUE((_audioDevice = AudioDeviceModuleImpl::Create(
         555, ADM_AUDIO_LAYER)) != NULL);
     if (_audioDevice == NULL)
@@ -650,16 +676,30 @@ int32_t FuncTestManager::Init()
     }
     EXPECT_EQ(1, _audioDevice->AddRef());
 
+    EXPECT_TRUE((_audioDevicePlayback = AudioDeviceModuleImpl::Create(
+        555, ADM_AUDIO_LAYER)) != NULL);
+    if (_audioDevicePlayback == NULL)
+    {
+        return -1;
+    }
+    EXPECT_EQ(1, _audioDevicePlayback->AddRef());
+
     // register the Audio Device module
     _processThread->RegisterModule(_audioDevice);
+    _processThread->RegisterModule(_audioDevicePlayback);
 
     // register event observer
     _audioEventObserver = new AudioEventObserver(_audioDevice);
     EXPECT_EQ(0, _audioDevice->RegisterEventObserver(_audioEventObserver));
 
+    // TODO: do we need an audioDevicePlayback observer?
+
     // register audio transport
     _audioTransport = new AudioTransportImpl(_audioDevice);
     EXPECT_EQ(0, _audioDevice->RegisterAudioCallback(_audioTransport));
+
+    _audioTransportPlayback = new AudioTransportPlaybackImpl(_audioDevicePlayback, _audioDevice);
+    EXPECT_EQ(0, _audioDevicePlayback->RegisterAudioCallback(_audioTransportPlayback));
 
     return 0;
 }
@@ -1229,7 +1269,7 @@ int32_t FuncTestManager::TestAudioTransport()
     TEST_LOG(" Audio Transport test:\n");
     TEST_LOG("=======================================\n");
 
-    if (_audioDevice == NULL)
+    if (_audioDevice == NULL || _audioDevicePlayback == NULL)
     {
         return -1;
     }
@@ -1237,9 +1277,13 @@ int32_t FuncTestManager::TestAudioTransport()
     RESET_TEST;
 
     AudioDeviceModule* audioDevice = _audioDevice;
+    AudioDeviceModule* audioDevicePlayback = _audioDevicePlayback;
 
     EXPECT_EQ(0, audioDevice->Init());
     EXPECT_TRUE(audioDevice->Initialized());
+
+    EXPECT_EQ(0, audioDevicePlayback->Init());
+    EXPECT_TRUE(audioDevicePlayback->Initialized());
 
     bool recIsAvailable(false);
     bool playIsAvailable(false);
@@ -1260,6 +1304,12 @@ int32_t FuncTestManager::TestAudioTransport()
     if (SelectPlayoutDevice() == -1)
     {
         TEST_LOG("\nERROR: Device selection failed!\n \n");
+        return -1;
+    }
+
+    if (SelectPlayoutDevice(audioDevicePlayback) == -1)
+    {
+        TEST_LOG("\nERROR: DevicePlayback selection failed!\n \n");
         return -1;
     }
 
@@ -1333,6 +1383,21 @@ int32_t FuncTestManager::TestAudioTransport()
         // ====================================
         // Next, record from microphone to file
 
+        // Note: due to limitations of capturing from loopback devices, need to 'playback' a device to get timing signals (to drive recoridng capture)
+#define RECORD_LOOPBACK 1
+#ifdef RECORD_LOOPBACK
+        EXPECT_EQ(0, audioDevicePlayback->RegisterAudioCallback(_audioTransportPlayback));
+        EXPECT_EQ(0, audioDevicePlayback->PlayoutIsAvailable(&available));
+        if (available)
+        {
+            EXPECT_EQ(0, audioDevicePlayback->InitPlayout());
+            EXPECT_EQ(0, audioDevicePlayback->StartPlayout());
+            SleepMs(100);
+        }
+
+        EXPECT_TRUE(audioDevicePlayback->Playing());
+#endif
+
         EXPECT_EQ(0, audioDevice->MicrophoneVolumeIsAvailable(&available));
         if (available)
         {
@@ -1373,6 +1438,12 @@ int32_t FuncTestManager::TestAudioTransport()
         EXPECT_EQ(0, audioDevice->StopRecording());
         EXPECT_EQ(0, audioDevice->RegisterAudioCallback(NULL));
         EXPECT_EQ(0, audioDevice->StopRawInputFileRecording());
+
+#define RECORD_LOOPBACK 1
+#ifdef RECORD_LOOPBACK
+        EXPECT_EQ(0, audioDevicePlayback->StopPlayout());
+        EXPECT_EQ(0, audioDevicePlayback->RegisterAudioCallback(NULL));
+#endif /* RECORD_LOOPBACK */
     }
 
     if (recIsAvailable && playIsAvailable)
@@ -2611,9 +2682,14 @@ int32_t FuncTestManager::SelectRecordingDevice()
     return ret;
 }
 
-int32_t FuncTestManager::SelectPlayoutDevice()
+int32_t FuncTestManager::SelectPlayoutDevice(AudioDeviceModule* adm)
 {
-    int16_t nDevices = _audioDevice->PlayoutDevices();
+    if (nullptr == adm)
+    {
+        adm = _audioDevice;
+    }
+
+    int16_t nDevices = adm->PlayoutDevices();
     char name[kAdmMaxDeviceNameSize];
     char guid[kAdmMaxGuidSize];
 
@@ -2624,7 +2700,7 @@ int32_t FuncTestManager::SelectPlayoutDevice()
     TEST_LOG("- - - - - - - - - - - - - - - - - - - -\n");
     for (int i = 0; i < nDevices; i++)
     {
-        EXPECT_EQ(0, _audioDevice->PlayoutDeviceName(i, name, guid));
+        EXPECT_EQ(0, adm->PlayoutDeviceName(i, name, guid));
         TEST_LOG(" (%d) Device %d (%s)\n", i+10, i, name);
     }
     TEST_LOG("\n: ");
@@ -2637,17 +2713,17 @@ int32_t FuncTestManager::SelectPlayoutDevice()
 
     if (sel == 0)
     {
-        EXPECT_TRUE((ret = _audioDevice->SetPlayoutDevice(
+        EXPECT_TRUE((ret = adm->SetPlayoutDevice(
             AudioDeviceModule::kDefaultDevice)) == 0);
     }
     else if (sel == 1)
     {
-        EXPECT_TRUE((ret = _audioDevice->SetPlayoutDevice(
+        EXPECT_TRUE((ret = adm->SetPlayoutDevice(
             AudioDeviceModule::kDefaultCommunicationDevice)) == 0);
     }
     else if (sel < (nDevices+10))
     {
-        EXPECT_EQ(0, (ret = _audioDevice->SetPlayoutDevice(sel-10)));
+        EXPECT_EQ(0, (ret = adm->SetPlayoutDevice(sel-10)));
     }
     else
     {

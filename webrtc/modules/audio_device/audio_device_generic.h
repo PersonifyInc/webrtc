@@ -166,6 +166,7 @@ class AudioDeviceGeneric {
   virtual void ClearPlayoutError() = 0;
   virtual void ClearRecordingWarning() = 0;
   virtual void ClearRecordingError() = 0;
+  virtual void ForceCaptureSamplesReady() {};
 
   virtual void AttachAudioBuffer(AudioDeviceBuffer* audioBuffer) = 0;
 

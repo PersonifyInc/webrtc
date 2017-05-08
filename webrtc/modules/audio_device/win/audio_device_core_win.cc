@@ -3263,6 +3263,14 @@ void AudioDeviceWindowsCore::ClearRecordingError()
     _recError = 0;
 }
 
+void AudioDeviceWindowsCore::ForceCaptureSamplesReady()
+{
+    if (_hCaptureSamplesReadyEvent)
+    {
+        SetEvent(_hCaptureSamplesReadyEvent);
+    }
+}
+
 // ============================================================================
 //                                 Private Methods
 // ============================================================================

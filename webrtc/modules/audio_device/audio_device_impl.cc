@@ -1909,6 +1909,10 @@ int AudioDeviceModuleImpl::GetRecordAudioParameters(
   return _ptrAudioDevice->GetRecordAudioParameters(params);
 }
 
+void AudioDeviceModuleImpl::ForceCaptureSamplesReady()
+{
+    _ptrAudioDevice->ForceCaptureSamplesReady();
+}
 // ============================================================================
 //                                 Private Methods
 // ============================================================================

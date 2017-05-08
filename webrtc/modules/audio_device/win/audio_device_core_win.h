@@ -203,6 +203,7 @@ public:
     virtual void ClearPlayoutError();
     virtual void ClearRecordingWarning();
     virtual void ClearRecordingError();
+    virtual void ForceCaptureSamplesReady();
 
 public:
     virtual void AttachAudioBuffer(AudioDeviceBuffer* audioBuffer);

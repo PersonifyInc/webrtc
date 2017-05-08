@@ -211,6 +211,9 @@ class AudioDeviceModule : public RefCountedModule {
     return -1;
   }
 
+  // Loopback device capture support
+  virtual void ForceCaptureSamplesReady() {};
+
  protected:
   virtual ~AudioDeviceModule() {}
 };

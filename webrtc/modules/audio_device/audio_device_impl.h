@@ -199,6 +199,9 @@ class AudioDeviceModuleImpl : public AudioDeviceModule {
 #endif
   AudioDeviceBuffer* GetAudioDeviceBuffer() { return &_audioDeviceBuffer; }
 
+  // Loopback device capture support
+  virtual void ForceCaptureSamplesReady() override;
+
  private:
   PlatformType Platform() const;
   AudioLayer PlatformAudioLayer() const;
