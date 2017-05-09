@@ -194,6 +194,8 @@ public:
     virtual int32_t EnableBuiltInAEC(bool enable);
     virtual bool BuiltInAECIsEnabled() const;
 
+    bool IsUsingLoopbackCapture() const { return _usingLoopbackCapture; }
+
 public:
     virtual bool PlayoutWarning() const;
     virtual bool PlayoutError() const;
@@ -351,6 +353,7 @@ private:
     bool                                    _microphoneIsInitialized;
 
     bool                                    _usingInputDeviceIndex;
+    bool                                    _usingLoopbackCapture;
     bool                                    _usingOutputDeviceIndex;
     AudioDeviceModule::WindowsDeviceType    _inputDevice;
     AudioDeviceModule::WindowsDeviceType    _outputDevice;

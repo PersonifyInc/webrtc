@@ -473,7 +473,8 @@ AudioDeviceWindowsCore::AudioDeviceWindowsCore(const int32_t id) :
     _outputDevice(AudioDeviceModule::kDefaultCommunicationDevice),
     _inputDeviceIndex(0),
     _outputDeviceIndex(0),
-    _newMicLevel(0)
+    _newMicLevel(0),
+    _usingLoopbackCapture(false)
 {
     WEBRTC_TRACE(kTraceMemory, kTraceAudioDevice, id, "%s created", __FUNCTION__);
     assert(_comInit.succeeded());
@@ -865,14 +866,14 @@ int32_t AudioDeviceWindowsCore::InitMicrophone()
     if (_usingInputDeviceIndex)
     {
         // Refresh the selected capture endpoint device using current index
-        ret = _GetListDevice(eRender /*eCapture*/, _inputDeviceIndex, &_ptrDeviceIn);
+        ret = _GetListDevice(eCapture, _inputDeviceIndex, &_ptrDeviceIn);
     }
     else
     {
         ERole role;
         (_inputDevice == AudioDeviceModule::kDefaultDevice) ? role = eConsole : role = eCommunications;
         // Refresh the selected capture endpoint device using role
-        ret = _GetDefaultDevice(eRender /*eCapture*/, role, &_ptrDeviceIn);
+        ret = _GetDefaultDevice(eCapture, role, &_ptrDeviceIn);
     }
 
     if (ret != 0 || (_ptrDeviceIn == NULL))
@@ -1937,11 +1938,11 @@ int32_t AudioDeviceWindowsCore::RecordingDeviceName(
     // Get the endpoint device's friendly-name
     if (defaultCommunicationDevice)
     {
-        ret = _GetDefaultDeviceName(eRender/*eCapture*/, eCommunications, szDeviceName, bufferLen);
+        ret = _GetDefaultDeviceName(eCapture, eCommunications, szDeviceName, bufferLen);
     }
     else
     {
-        ret = _GetListDeviceName(eRender/*eCapture*/, index, szDeviceName, bufferLen);
+        ret = _GetListDeviceName(eCapture, index, szDeviceName, bufferLen);
     }
 
     if (ret == 0)
@@ -1956,11 +1957,11 @@ int32_t AudioDeviceWindowsCore::RecordingDeviceName(
     // Get the endpoint ID string (uniquely identifies the device among all audio endpoint devices)
     if (defaultCommunicationDevice)
     {
-        ret = _GetDefaultDeviceID(eRender/*eCapture*/, eCommunications, szDeviceName, bufferLen);
+        ret = _GetDefaultDeviceID(eCapture, eCommunications, szDeviceName, bufferLen);
     }
     else
     {
-        ret = _GetListDeviceID(eRender/*eCapture*/, index, szDeviceName, bufferLen);
+        ret = _GetListDeviceID(eCapture, index, szDeviceName, bufferLen);
     }
 
     if (guid != NULL && ret == 0)
@@ -1984,10 +1985,10 @@ int16_t AudioDeviceWindowsCore::RecordingDevices()
 
     CriticalSectionScoped lock(&_critSect);
 
-    // HACK: force to use loopback devices
-    if (_RefreshDeviceList(eRender /*eCapture*/) != -1)
+    if (_RefreshDeviceList(eCapture) != 1 &&
+        _RefreshDeviceList(eRender) != 1)
     {
-        return (_DeviceListCount(eRender /*eCapture*/));
+        return (_DeviceListCount(eCapture) + _DeviceListCount(eRender));
     }
 
     return -1;
@@ -2019,14 +2020,30 @@ int32_t AudioDeviceWindowsCore::SetRecordingDevice(uint16_t index)
     HRESULT hr(S_OK);
 
     assert(_ptrRenderCollection != NULL);
-    //assert(_ptrCaptureCollection != NULL);
+    assert(_ptrCaptureCollection != NULL);
 
     // Select an endpoint capture device given the specified index
     SAFE_RELEASE(_ptrDeviceIn);
-    //hr = _ptrCaptureCollection->Item(
-    hr = _ptrRenderCollection->Item(
-                                 index,
-                                 &_ptrDeviceIn);
+
+    // Determine if the index refers to an old-style recording device (in _ptrCaptureCollection) or 
+    // a loopback device (in _ptrRenderCollection)
+    if (index >= _DeviceListCount(eCapture))
+    {
+        // Case: loopback device
+        _usingLoopbackCapture = true;
+        index -= _DeviceListCount(eCapture);
+        hr = _ptrRenderCollection->Item(
+            index,
+            &_ptrDeviceIn);
+    }
+    else
+    {
+        _usingLoopbackCapture = false;
+        hr = _ptrCaptureCollection->Item(
+            index,
+            &_ptrDeviceIn);
+    }
+
     if (FAILED(hr))
     {
         _TraceCOMError(hr);
@@ -4477,7 +4494,14 @@ int32_t AudioDeviceWindowsCore::_GetListDeviceName(EDataFlow dir, int index, LPW
     }
     else if (NULL != _ptrCaptureCollection)
     {
-        hr = _ptrCaptureCollection->Item(index, &pDevice);
+        if (index >= _DeviceListCount(eCapture))
+        {
+            hr = _ptrRenderCollection->Item(index - _DeviceListCount(eCapture), &pDevice);
+        }
+        else
+        {
+            hr = _ptrCaptureCollection->Item(index, &pDevice);
+        }
     }
 
     if (FAILED(hr))
@@ -4555,7 +4579,14 @@ int32_t AudioDeviceWindowsCore::_GetListDeviceID(EDataFlow dir, int index, LPWST
     }
     else if (NULL != _ptrCaptureCollection)
     {
-        hr = _ptrCaptureCollection->Item(index, &pDevice);
+        if (index >= _DeviceListCount(eCapture))
+        {
+            hr = _ptrRenderCollection->Item(index - _DeviceListCount(eCapture), &pDevice);
+        }
+        else
+        {
+            hr = _ptrCaptureCollection->Item(index, &pDevice);
+        }
     }
 
     if (FAILED(hr))
