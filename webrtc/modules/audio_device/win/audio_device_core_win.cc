@@ -2649,16 +2649,22 @@ int32_t AudioDeviceWindowsCore::InitRecording()
     }
 
     // Create a capturing stream.
+    DWORD streamFlags =
+        AUDCLNT_STREAMFLAGS_EVENTCALLBACK |          // processing of the audio buffer by the client will be event driven
+        AUDCLNT_STREAMFLAGS_NOPERSIST;               // volume and mute settings for an audio session will not persist across system restarts
+
+    if (IsUsingLoopbackCapture())
+    {
+        streamFlags |= AUDCLNT_STREAMFLAGS_LOOPBACK; // Loopback support
+    }
+
     hr = _ptrClientIn->Initialize(
                           AUDCLNT_SHAREMODE_SHARED,             // share Audio Engine with other applications
-                          AUDCLNT_STREAMFLAGS_EVENTCALLBACK |   // processing of the audio buffer by the client will be event driven
-                          AUDCLNT_STREAMFLAGS_NOPERSIST |       // volume and mute settings for an audio session will not persist across system restarts
-                          AUDCLNT_STREAMFLAGS_LOOPBACK,         // Loopback support
+                          streamFlags,
                           0,                                    // required for event-driven shared mode
                           0,                                    // periodicity
                           &Wfx,                                 // selected wave format
                           NULL);                                // session GUID
-
 
     if (hr != S_OK)
     {
