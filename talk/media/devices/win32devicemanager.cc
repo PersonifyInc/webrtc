@@ -162,8 +162,15 @@ bool Win32DeviceManager::GetAudioDevices(bool input,
   devs->clear();
 
   if (rtc::IsWindowsVistaOrLater()) {
-    if (!GetCoreAudioDevices(input, devs))
-      return false;
+      bool ret = GetCoreAudioDevices(input, devs);
+      if (!ret) return false;
+
+      // Append output devices since support loopback capture now...
+      if (input)
+      {
+          ret = GetCoreAudioDevices(false, devs);
+      }
+      if (!ret) return false;
   } else {
     if (!GetWaveDevices(input, devs))
       return false;
