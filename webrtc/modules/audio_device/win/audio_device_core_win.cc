@@ -866,7 +866,7 @@ int32_t AudioDeviceWindowsCore::InitMicrophone()
     if (_usingInputDeviceIndex)
     {
         // Refresh the selected capture endpoint device using current index
-        ret = _GetListDevice(eCapture, _inputDeviceIndex, &_ptrDeviceIn);
+        ret = _GetListDevice(IsUsingLoopbackCapture() ? eRender : eCapture, _inputDeviceIndex, &_ptrDeviceIn);
     }
     else
     {
@@ -2035,6 +2035,9 @@ int32_t AudioDeviceWindowsCore::SetRecordingDevice(uint16_t index)
         hr = _ptrRenderCollection->Item(
             index,
             &_ptrDeviceIn);
+
+        // ... and set the playout device to the same thing!
+        SetPlayoutDevice(index);
     }
     else
     {
@@ -2726,6 +2729,13 @@ int32_t AudioDeviceWindowsCore::InitRecording()
     CoTaskMemFree(pWfxClosestMatch);
 
     WEBRTC_TRACE(kTraceInfo, kTraceAudioDevice, _id, "capture side is now initialized");
+
+    // Initialize Playout if we're doing loopback capture...
+    if (IsUsingLoopbackCapture())
+    {
+        InitPlayout();
+    }
+
     return 0;
 
 Exit:
@@ -2840,6 +2850,12 @@ int32_t AudioDeviceWindowsCore::StartRecording()
     _playAcc = 0;
     _recording = true;
 
+    // Start the render thread if we're doing loopback capture
+    if (IsUsingLoopbackCapture())
+    {
+        StartPlayout();
+    }
+
     return 0;
 }
 
@@ -2854,6 +2870,12 @@ int32_t AudioDeviceWindowsCore::StopRecording()
     if (!_recIsInitialized)
     {
         return 0;
+    }
+
+    // Loopback case: we have a playout thread, stop it.
+    if (IsUsingLoopbackCapture())
+    {
+        StopPlayout();
     }
 
     _Lock();
@@ -3591,6 +3613,14 @@ DWORD AudioDeviceWindowsCore::DoRenderThread()
                 {
                     // Request data to be played out (#bytes = _playBlockSize*_audioFrameSize)
                     _UnLock();
+
+                    // TODO: figure out if this is really where we should be putting this -- was previously assuming this was being driven by
+                    // device callbacks, but this suggests otherwise.
+                    if (IsUsingLoopbackCapture())
+                    {
+                        ForceCaptureSamplesReady();
+                    }
+
                     int32_t nSamples =
                     _ptrAudioBuffer->RequestPlayoutData(_playBlockSize);
                     _Lock();
