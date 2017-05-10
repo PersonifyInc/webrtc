@@ -1269,7 +1269,7 @@ int32_t FuncTestManager::TestAudioTransport()
     TEST_LOG(" Audio Transport test:\n");
     TEST_LOG("=======================================\n");
 
-    if (_audioDevice == NULL || _audioDevicePlayback == NULL)
+    if (_audioDevice == NULL /*|| _audioDevicePlayback == NULL*/)
     {
         return -1;
     }
@@ -1277,13 +1277,13 @@ int32_t FuncTestManager::TestAudioTransport()
     RESET_TEST;
 
     AudioDeviceModule* audioDevice = _audioDevice;
-    AudioDeviceModule* audioDevicePlayback = _audioDevicePlayback;
+    //AudioDeviceModule* audioDevicePlayback = _audioDevicePlayback;
 
     EXPECT_EQ(0, audioDevice->Init());
     EXPECT_TRUE(audioDevice->Initialized());
 
-    EXPECT_EQ(0, audioDevicePlayback->Init());
-    EXPECT_TRUE(audioDevicePlayback->Initialized());
+    //EXPECT_EQ(0, audioDevicePlayback->Init());
+    //EXPECT_TRUE(audioDevicePlayback->Initialized());
 
     bool recIsAvailable(false);
     bool playIsAvailable(false);
@@ -1307,11 +1307,11 @@ int32_t FuncTestManager::TestAudioTransport()
         return -1;
     }
 
-    if (SelectPlayoutDevice(audioDevicePlayback) == -1)
-    {
-        TEST_LOG("\nERROR: DevicePlayback selection failed!\n \n");
-        return -1;
-    }
+    //if (SelectPlayoutDevice(audioDevicePlayback) == -1)
+    //{
+    //    TEST_LOG("\nERROR: DevicePlayback selection failed!\n \n");
+    //    return -1;
+    //}
 
     EXPECT_EQ(0, audioDevice->PlayoutIsAvailable(&playIsAvailable));
     if (recIsAvailable && playIsAvailable)
@@ -1384,8 +1384,8 @@ int32_t FuncTestManager::TestAudioTransport()
         // Next, record from microphone to file
 
         // Note: due to limitations of capturing from loopback devices, need to 'playback' a device to get timing signals (to drive recoridng capture)
-#define RECORD_LOOPBACK 1
-#ifdef RECORD_LOOPBACK
+#define RECORD_LOOPBACK 0
+#if RECORD_LOOPBACK
         EXPECT_EQ(0, audioDevicePlayback->RegisterAudioCallback(_audioTransportPlayback));
         EXPECT_EQ(0, audioDevicePlayback->PlayoutIsAvailable(&available));
         if (available)
@@ -1439,8 +1439,7 @@ int32_t FuncTestManager::TestAudioTransport()
         EXPECT_EQ(0, audioDevice->RegisterAudioCallback(NULL));
         EXPECT_EQ(0, audioDevice->StopRawInputFileRecording());
 
-#define RECORD_LOOPBACK 1
-#ifdef RECORD_LOOPBACK
+#if RECORD_LOOPBACK
         EXPECT_EQ(0, audioDevicePlayback->StopPlayout());
         EXPECT_EQ(0, audioDevicePlayback->RegisterAudioCallback(NULL));
 #endif /* RECORD_LOOPBACK */
