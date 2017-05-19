@@ -218,7 +218,7 @@ private:
     int32_t TestDeviceRemoval();
     int32_t TestExtra();
     int32_t TestMicrophoneAGC();
-    int32_t SelectPlayoutDevice();
+    int32_t SelectPlayoutDevice(AudioDeviceModule* adm = nullptr);
     int32_t SelectRecordingDevice();
     int32_t TestAdvancedMBAPI();
 private:
