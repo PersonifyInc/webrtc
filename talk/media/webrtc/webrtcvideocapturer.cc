@@ -387,6 +387,10 @@ void WebRtcVideoCapturer::OnIncomingCapturedFrame(
         // Note that this results in a shallow copying of the frame.
         rtc::Bind(&WebRtcVideoCapturer::SignalFrameCapturedOnStartThread,
                   this, sample));
+
+    // HACK: make this behave synchronously so we don't flood recipient thread
+    // with video frames
+    async_invoker_->Flush(start_thread_);
   }
 }
 
