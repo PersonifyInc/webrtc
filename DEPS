@@ -15,7 +15,8 @@ deps = {
   # When rolling gflags, also update
   # https://chromium.googlesource.com/chromium/deps/webrtc/webrtc.DEPS
   'src/third_party/gflags/src':
-    Var('chromium_git') + '/external/gflags/src@e7390f9185c75f8d902c05ed7d20bb94eb914d0c', # from svn revision 82
+    Var('chromium_git') + '/external/gflags/src@892576179b45861b53e04a112996a738309cf364', # from svn revision 82
+    #Var('chromium_git') + '/external/gflags/src@e7390f9185c75f8d902c05ed7d20bb94eb914d0c', # from svn revision 82
 
   'src/third_party/junit-jar':
     Var('chromium_git') + '/external/junit@9e98a85ecf6e857523fcda9150756297a64bccba',
